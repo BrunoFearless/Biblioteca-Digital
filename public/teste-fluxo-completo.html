@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teste de Fluxo Completo</title>
+    <style>
+        body { font-family: Arial; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        h1 { color: #333; }
+        .step { margin: 20px 0; padding: 15px; border-left: 4px solid #667eea; }
+        .step h2 { margin-top: 0; color: #667eea; }
+        .result { margin: 10px 0; padding: 10px; background: #f0f0f0; border-radius: 5px; }
+        .success { border-left-color: green; background: #e8f5e9; }
+        .error { border-left-color: red; background: #ffebee; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; background: #667eea; color: white; border: none; border-radius: 5px; }
+        button:hover { background: #764ba2; }
+        pre { background: #f0f0f0; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        code { color: #d84315; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Teste de Fluxo Completo - Login + Borrow</h1>
+        
+        <div class="step">
+            <h2>1. Carregar Lista de Usuários</h2>
+            <button onclick="carregarUsuarios()">Carregar Usuários</button>
+            <div id="resultado-usuarios" class="result"></div>
+        </div>
+
+        <div class="step">
+            <h2>2. Fazer Login Simulado (Cliente)</h2>
+            <p>Email: <input type="text" id="emailLogin" value="joao@email.com" /></p>
+            <button onclick="fazerLoginSimulado()">Login (Simular)</button>
+            <div id="resultado-login" class="result"></div>
+        </div>
+
+        <div class="step">
+            <h2>3. Carregar Catálogo de Livros</h2>
+            <button onclick="carregarLivros()">Carregar Livros</button>
+            <div id="resultado-livros" class="result"></div>
+        </div>
+
+        <div class="step">
+            <h2>4. Testar Borrow</h2>
+            <p>Livro ID: <input type="number" id="livroId" value="226" /></p>
+            <button onclick="testarBorrow()">Fazer Empréstimo</button>
+            <div id="resultado-borrow" class="result"></div>
+        </div>
+
+        <div class="step">
+            <h2>5. Verificar Status no Banco</h2>
+            <button onclick="verificarEmprestimos()">Verificar Empréstimos no Banco</button>
+            <div id="resultado-verificacao" class="result"></div>
+        </div>
+
+        <div class="step">
+            <h2>6. Diagnosticar Problema</h2>
+            <button onclick="diagnosticar()">Executar Diagnóstico</button>
+            <div id="resultado-diagnostico" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        let usuarioAtualTest = null;
+
+        async function carregarUsuarios() {
+            const el = document.getElementById('resultado-usuarios');
+            try {
+                el.innerHTML = '<p>Carregando...</p>';
+                const res = await fetch('/api/usuarios');
+                const usuarios = await res.json();
+                el.innerHTML = `
+                    <p class="success">✓ ${usuarios.length} usuários carregados</p>
+                    <pre>${usuarios.slice(0, 3).map(u => `ID: ${u.id}, Nome: ${u.nome}, Email: ${u.email}`).join('\n')}</pre>
+                `;
+            } catch (e) {
+                el.innerHTML = `<p class="error">✗ Erro: ${e.message}</p>`;
+            }
+        }
+
+        async function fazerLoginSimulado() {
+            const el = document.getElementById('resultado-login');
+            const email = document.getElementById('emailLogin').value;
+            try {
+                el.innerHTML = '<p>Fazendo login...</p>';
+                const res = await fetch('/api/usuarios');
+                const usuarios = await res.json();
+                const usuario = usuarios.find(u => u.email === email);
+                
+                if (usuario) {
+                    usuarioAtualTest = usuario;
+                    // Simular o que o index.html faz
+                    sessionStorage.setItem('modo', 'cliente');
+                    sessionStorage.setItem('usuario', JSON.stringify(usuario));
+                    
+                    el.innerHTML = `
+                        <p class="success">✓ Login bem-sucedido!</p>
+                        <pre>ID: ${usuario.id}
+Nome: ${usuario.nome}
+Email: ${usuario.email}</pre>
+                    `;
+                } else {
+                    el.innerHTML = `<p class="error">✗ Usuário ${email} não encontrado</p>`;
+                }
+            } catch (e) {
+                el.innerHTML = `<p class="error">✗ Erro: ${e.message}</p>`;
+            }
+        }
+
+        async function carregarLivros() {
+            const el = document.getElementById('resultado-livros');
+            try {
+                el.innerHTML = '<p>Carregando...</p>';
+                const res = await fetch('/api/livros');
+                const livros = await res.json();
+                const comEstoque = livros.filter(l => l.estoque > 0);
+                el.innerHTML = `
+                    <p class="success">✓ ${livros.length} livros carregados (${comEstoque.length} com estoque)</p>
+                    <pre>${comEstoque.slice(0, 3).map(l => `ID: ${l.id}, Título: ${l.titulo}, Estoque: ${l.estoque}`).join('\n')}</pre>
+                `;
+            } catch (e) {
+                el.innerHTML = `<p class="error">✗ Erro: ${e.message}</p>`;
+            }
+        }
+
+        async function testarBorrow() {
+            const el = document.getElementById('resultado-borrow');
+            const livroId = parseInt(document.getElementById('livroId').value);
+            
+            if (!usuarioAtualTest) {
+                el.innerHTML = '<p class="error">✗ Faça login primeiro</p>';
+                return;
+            }
+            
+            try {
+                el.innerHTML = '<p>Criando empréstimo...</p>';
+                const dados = {
+                    usuario_id: usuarioAtualTest.id,
+                    livro_id: livroId,
+                    data_emprestimo: new Date().toISOString().split('T')[0],
+                    data_devolucao: new Date(Date.now() + 14*24*60*60*1000).toISOString().split('T')[0]
+                };
+                
+                console.log('Dados do empréstimo:', dados);
+                
+                const res = await fetch('/api/emprestimos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dados)
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok) {
+                    el.innerHTML = `
+                        <p class="success">✓ Empréstimo criado com sucesso!</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    el.innerHTML = `
+                        <p class="error">✗ Erro ao criar empréstimo</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (e) {
+                el.innerHTML = `<p class="error">✗ Erro: ${e.message}</p>`;
+            }
+        }
+
+        async function verificarEmprestimos() {
+            const el = document.getElementById('resultado-verificacao');
+            
+            if (!usuarioAtualTest) {
+                el.innerHTML = '<p class="error">✗ Faça login primeiro</p>';
+                return;
+            }
+            
+            try {
+                el.innerHTML = '<p>Verificando empréstimos no banco...</p>';
+                const res = await fetch('/api/emprestimos');
+                const emprestimos = await res.json();
+                const meusEmprestimos = emprestimos.filter(e => e.usuario_id === usuarioAtualTest.id);
+                
+                el.innerHTML = `
+                    <p class="success">✓ Total de empréstimos no banco: ${emprestimos.length}</p>
+                    <p>Seus empréstimos: ${meusEmprestimos.length}</p>
+                    ${meusEmprestimos.length > 0 ? `<pre>${meusEmprestimos.map(e => `ID: ${e.id}, Livro: ${e.livro_id}, Data: ${e.data_emprestimo}`).join('\n')}</pre>` : ''}
+                `;
+            } catch (e) {
+                el.innerHTML = `<p class="error">✗ Erro: ${e.message}</p>`;
+            }
+        }
+
+        function diagnosticar() {
+            const el = document.getElementById('resultado-diagnostico');
+            let diagnostico = '<div class="success">';
+            
+            // Verificar sessão
+            const usuarioSession = JSON.parse(sessionStorage.getItem('usuario') || 'null');
+            const modo = sessionStorage.getItem('modo');
+            
+            diagnostico += `<p><strong>Sessão Storage:</strong></p>`;
+            diagnostico += `<pre>Modo: ${modo}
+Usuário: ${JSON.stringify(usuarioSession, null, 2)}</pre>`;
+            
+            // Verificar localStorage
+            diagnostico += `<p><strong>Local Storage (Empréstimos/Reservas):</strong></p>`;
+            const keys = Object.keys(localStorage);
+            const emprestimosKeys = keys.filter(k => k.startsWith('emprestimos_'));
+            const reservasKeys = keys.filter(k => k.startsWith('reservas_'));
+            diagnostico += `<pre>Chaves de empréstimos: ${emprestimosKeys.join(', ') || 'Nenhuma'}
+Chaves de reservas: ${reservasKeys.join(', ') || 'Nenhuma'}</pre>`;
+            
+            if (usuarioAtualTest) {
+                const meusEmprestimos = localStorage.getItem(`emprestimos_${usuarioAtualTest.id}`);
+                const minhasReservas = localStorage.getItem(`reservas_${usuarioAtualTest.id}`);
+                diagnostico += `<pre>Seus empréstimos (localStorage): ${meusEmprestimos || 'Nenhum'}
+Suas reservas (localStorage): ${minhasReservas || 'Nenhuma'}</pre>`;
+            }
+            
+            diagnostico += '</div>';
+            el.innerHTML = diagnostico;
+        }
+    </script>
+</body>
+</html>

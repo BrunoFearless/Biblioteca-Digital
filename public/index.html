@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biblioteca Digital - Login</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            width: 100%;
+        }
+
+        .logo-section {
+            text-align: center;
+            margin-bottom: 50px;
+            color: white;
+        }
+
+        .logo-section h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .logo-section p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .modes {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 50px;
+        }
+
+        .mode-card {
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .mode-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .mode-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+
+        .mode-card h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.8em;
+        }
+
+        .mode-card p {
+            color: #666;
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+
+        .mode-btn {
+            padding: 12px 30px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+
+        .mode-btn:hover {
+            background: #764ba2;
+            transform: scale(1.05);
+        }
+
+        .login-form {
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            margin-top: 30px;
+            display: none;
+        }
+
+        .login-form.active {
+            display: block;
+        }
+
+        .login-form h3 {
+            color: #667eea;
+            margin-bottom: 25px;
+            font-size: 1.6em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #333;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 25px;
+        }
+
+        .btn-submit {
+            padding: 12px 30px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+
+        .btn-submit:hover {
+            background: #764ba2;
+        }
+
+        .btn-back {
+            padding: 12px 30px;
+            background: #95a5a6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+
+        .btn-back:hover {
+            background: #7f8c8d;
+        }
+
+        .toggle-link {
+            text-align: center;
+            color: #667eea;
+            margin-top: 15px;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo-section">
+            <h1>📚 Biblioteca Digital</h1>
+            <p>Sistema de Gerenciamento de Livros e Empréstimos</p>
+        </div>
+
+        <!-- Seleção de Modo -->
+        <div id="modeSelection" class="modes">
+            <div class="mode-card" onclick="selectMode('cliente')">
+                <div class="mode-icon">👤</div>
+                <h2>Modo Cliente</h2>
+                <p>Procure livros, pegue emprestado, faça reservas e acompanhe seus empréstimos.</p>
+                <button class="mode-btn">Entrar como Cliente</button>
+            </div>
+
+            <div class="mode-card" onclick="selectMode('admin')">
+                <div class="mode-icon">🔐</div>
+                <h2>Modo Admin</h2>
+                <p>Gerencie livros, usuários, empréstimos e acompanhe toda a atividade da biblioteca.</p>
+                <button class="mode-btn">Entrar como Admin</button>
+            </div>
+        </div>
+
+        <!-- Formulário de Login -->
+        <div id="loginForm" class="login-form">
+            <h3 id="loginTitle">Login Cliente</h3>
+            
+            <div class="error" id="errorMessage"></div>
+            <div class="success" id="successMessage"></div>
+
+            <!-- Aba de Login -->
+            <div id="loginTab" class="tab-content active">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" placeholder="seu@email.com">
+                </div>
+                <div class="form-group">
+                    <label for="senha">Senha</label>
+                    <input type="password" id="senha" placeholder="Digite sua senha">
+                </div>
+                <div class="toggle-link" onclick="switchTab('registroTab')">Não tem conta? Registre-se aqui</div>
+                <div class="form-buttons">
+                    <button class="btn-submit" onclick="fazerLogin()">Entrar</button>
+                    <button class="btn-back" onclick="voltarModo()">Voltar</button>
+                </div>
+            </div>
+
+            <!-- Aba de Registro -->
+            <div id="registroTab" class="tab-content">
+                <div class="form-group">
+                    <label for="nome">Nome Completo</label>
+                    <input type="text" id="nome" placeholder="Seu nome completo">
+                </div>
+                <div class="form-group">
+                    <label for="emailReg">Email</label>
+                    <input type="email" id="emailReg" placeholder="seu@email.com">
+                </div>
+                <div class="form-group">
+                    <label for="telefoneReg">Telefone</label>
+                    <input type="tel" id="telefoneReg" placeholder="(11) 99999-9999">
+                </div>
+                <div class="form-group">
+                    <label for="enderecoReg">Endereço</label>
+                    <input type="text" id="enderecoReg" placeholder="Rua, número, cidade">
+                </div>
+                <div class="form-group">
+                    <label for="senhaReg">Senha</label>
+                    <input type="password" id="senhaReg" placeholder="Digite uma senha">
+                </div>
+                <div class="toggle-link" onclick="switchTab('loginTab')">Já tem conta? Faça login aqui</div>
+                <div class="form-buttons">
+                    <button class="btn-submit" onclick="registrarUsuario()">Registrar</button>
+                    <button class="btn-back" onclick="voltarModo()">Voltar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let modoAtual = null;
+
+        function selectMode(modo) {
+            modoAtual = modo;
+            document.getElementById('modeSelection').style.display = 'none';
+            document.getElementById('loginForm').classList.add('active');
+            
+            if (modo === 'admin') {
+                document.getElementById('loginTitle').textContent = 'Login Administrator';
+                document.getElementById('registroTab').style.display = 'none';
+                document.getElementById('loginTab').style.display = 'block';
+            } else {
+                document.getElementById('loginTitle').textContent = 'Login Cliente';
+            }
+        }
+
+        function voltarModo() {
+            document.getElementById('modeSelection').style.display = 'grid';
+            document.getElementById('loginForm').classList.remove('active');
+            document.getElementById('loginTab').classList.add('active');
+            document.getElementById('registroTab').classList.remove('active');
+            modoAtual = null;
+        }
+
+        function switchTab(tabName) {
+            document.getElementById('loginTab').classList.remove('active');
+            document.getElementById('registroTab').classList.remove('active');
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        function mostrarErro(mensagem) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = mensagem;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        function mostrarSucesso(mensagem) {
+            const successDiv = document.getElementById('successMessage');
+            successDiv.textContent = mensagem;
+            successDiv.style.display = 'block';
+            setTimeout(() => {
+                successDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        function fazerLogin() {
+            const email = document.getElementById('email').value;
+            const senha = document.getElementById('senha').value;
+
+            if (!email || !senha) {
+                mostrarErro('Preencha todos os campos');
+                return;
+            }
+
+            if (modoAtual === 'admin') {
+                // Admin: email = admin@biblioteca.com e senha = admin123
+                if (email === 'admin@biblioteca.com' && senha === 'admin123') {
+                    sessionStorage.setItem('modo', 'admin');
+                    sessionStorage.setItem('usuario', JSON.stringify({ email, nome: 'Administrador' }));
+                    window.location.href = '/admin.html';
+                } else {
+                    mostrarErro('Email ou senha incorretos (use: admin@biblioteca.com / admin123)');
+                }
+            } else {
+                // Cliente: fazer login ou criar se não existir
+                loginCliente(email, senha);
+            }
+        }
+
+        function loginCliente(email, senha) {
+            // Tentar login: primeiro localStorage, depois banco de dados
+            const usuarios = JSON.parse(localStorage.getItem('usuarios') || '{}');
+            
+            if (usuarios[email] && usuarios[email].senha === senha) {
+                // Login via localStorage
+                sessionStorage.setItem('modo', 'cliente');
+                sessionStorage.setItem('usuario', JSON.stringify(usuarios[email]));
+                window.location.href = '/cliente.html';
+                return;
+            }
+            
+            // Buscar do banco de dados
+            fetch('/api/usuarios')
+                .then(r => r.json())
+                .then(usuariosDoBanco => {
+                    const usuario = usuariosDoBanco.find(u => u.email === email);
+                    if (usuario) {
+                        // Usuário encontrado no banco, fazer login direto (sem verificar senha de teste)
+                        // Salvar todos os usuários no localStorage para rápido acesso
+                        const usuariosCache = {};
+                        usuariosDoBanco.forEach(u => {
+                            usuariosCache[u.email] = u;
+                        });
+                        localStorage.setItem('usuarios', JSON.stringify(usuariosCache));
+                        
+                        sessionStorage.setItem('modo', 'cliente');
+                        sessionStorage.setItem('usuario', JSON.stringify(usuario));
+                        console.log('Login bem-sucedido! Usuário:', usuario);
+                        window.location.href = '/cliente.html';
+                    } else {
+                        mostrarErro('Email ou senha incorretos');
+                    }
+                })
+                .catch(e => {
+                    console.error('Erro ao buscar usuários:', e);
+                    mostrarErro('Email ou senha incorretos');
+                });
+        }
+
+        function registrarUsuario() {
+            const nome = document.getElementById('nome').value;
+            const email = document.getElementById('emailReg').value;
+            const telefone = document.getElementById('telefoneReg').value;
+            const endereco = document.getElementById('enderecoReg').value;
+            const senha = document.getElementById('senhaReg').value;
+
+            if (!nome || !email || !telefone || !endereco || !senha) {
+                mostrarErro('Preencha todos os campos');
+                return;
+            }
+
+            if (senha.length < 6) {
+                mostrarErro('A senha deve ter no mínimo 6 caracteres');
+                return;
+            }
+
+            // Armazenar no localStorage (em produção seria no banco de dados)
+            const usuarios = JSON.parse(localStorage.getItem('usuarios') || '{}');
+            
+            if (usuarios[email]) {
+                mostrarErro('Email já cadastrado');
+                return;
+            }
+
+            usuarios[email] = { nome, email, telefone, endereco, senha, id: Date.now() };
+            localStorage.setItem('usuarios', JSON.stringify(usuarios));
+
+            // Também salvar no banco de dados via API
+            salvarUsuariNoBanco({ nome, email, telefone, endereco });
+            
+            mostrarSucesso('Conta criada com sucesso! Faça login agora.');
+            setTimeout(() => {
+                switchTab('loginTab');
+                document.getElementById('email').value = email;
+                document.getElementById('senha').value = '';
+            }, 2000);
+        }
+
+        function salvarUsuariNoBanco(dados) {
+            fetch('/usuarios', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(dados)
+            }).catch(e => console.log('Nota: Usuário salvo localmente'));
+        }
+    </script>
+</body>
+</html>

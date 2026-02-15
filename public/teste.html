@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teste de API</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        pre { background: #f0f0f0; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; background: #667eea; color: white; border: none; border-radius: 5px; }
+        button:hover { background: #764ba2; }
+        .result { margin-top: 20px; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Teste de API - Biblioteca Digital</h1>
+    
+    <h2>1. Testar GET /api/usuarios</h2>
+    <button onclick="testarGetUsuarios()">Carregar Usuários</button>
+    <div id="resultado1" class="result"></div>
+
+    <h2>2. Testar POST /api/emprestimos</h2>
+    <button onclick="testarPostEmprestimo()">Criar Empréstimo</button>
+    <div id="resultado2" class="result"></div>
+
+    <h2>3. Testar POST /api/test-emprestimo</h2>
+    <button onclick="testarTestEmprestimo()">Testar Rota de Teste</button>
+    <div id="resultado3" class="result"></div>
+
+    <h2>4. Testar POST /api/reservas</h2>
+    <button onclick="testarPostReserva()">Criar Reserva</button>
+    <div id="resultado4" class="result"></div>
+
+    <script>
+        async function testarGetUsuarios() {
+            const el = document.getElementById('resultado1');
+            try {
+                el.innerHTML = '<p>Carregando...</p>';
+                const res = await fetch('/api/usuarios');
+                const data = await res.json();
+                el.innerHTML = `<p class="success">✓ Status: ${res.status}</p><pre>${JSON.stringify(data.slice(0, 2), null, 2)}</pre>`;
+            } catch (e) {
+                el.innerHTML = `<p class="error">✗ Erro: ${e.message}</p>`;
+            }
+        }
+
+        async function testarPostEmprestimo() {
+            const el = document.getElementById('resultado2');
+            try {
+                el.innerHTML = '<p>Enviando...</p>';
+                const body = {
+                    usuario_id: 80,
+                    livro_id: 1,
+                    data_emprestimo: new Date().toISOString().split('T')[0],
+                    data_devolucao: new Date(Date.now() + 14*24*60*60*1000).toISOString().split('T')[0]
+                };
+                console.log('Enviando:', body);
+                const res = await fetch('/api/emprestimos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+                el.innerHTML = `<p class="${res.ok ? 'success' : 'error'}">Status: ${res.status}</p><pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (e) {
+                el.innerHTML = `<p class="error">✗ Erro: ${e.message}</p>`;
+            }
+        }
+
+        async function testarTestEmprestimo() {
+            const el = document.getElementById('resultado3');
+            try {
+                el.innerHTML = '<p>Enviando...</p>';
+                const body = {
+                    usuario_id: 80,
+                    livro_id: 2,
+                    data_emprestimo: new Date().toISOString().split('T')[0],
+                    data_devolucao: new Date(Date.now() + 14*24*60*60*1000).toISOString().split('T')[0]
+                };
+                const res = await fetch('/api/test-emprestimo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+                el.innerHTML = `<p class="${res.ok ? 'success' : 'error'}">Status: ${res.status}</p><pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (e) {
+                el.innerHTML = `<p class="error">✗ Erro: ${e.message}</p>`;
+            }
+        }
+
+        async function testarPostReserva() {
+            const el = document.getElementById('resultado4');
+            try {
+                el.innerHTML = '<p>Enviando...</p>';
+                const body = {
+                    usuario_id: 80,
+                    livro_id: 3
+                };
+                const res = await fetch('/api/reservas', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+                el.innerHTML = `<p class="${res.ok ? 'success' : 'error'}">Status: ${res.status}</p><pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (e) {
+                el.innerHTML = `<p class="error">✗ Erro: ${e.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

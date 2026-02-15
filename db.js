@@ -43,7 +43,8 @@ async function initializeDatabase() {
         ano_publicacao YEAR NOT NULL,
         estoque INT NOT NULL,
         vezes_emprestado INT DEFAULT 0,
-        emprestimos_ativos INT DEFAULT 0
+        emprestimos_ativos INT DEFAULT 0,
+        capa_url VARCHAR(500)
       );
     `);
 
@@ -67,6 +68,18 @@ async function initializeDatabase() {
         data_emprestimo DATE,
         data_devolucao DATE,
         devolvido BOOLEAN DEFAULT FALSE,
+        FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
+        FOREIGN KEY (livro_id) REFERENCES livros(id)
+      );
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS reservas (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        usuario_id INT,
+        livro_id INT,
+        data_reserva DATE,
+        status ENUM('ativa', 'cancelada', 'efetivada') DEFAULT 'ativa',
         FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
         FOREIGN KEY (livro_id) REFERENCES livros(id)
       );
