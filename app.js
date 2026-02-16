@@ -57,7 +57,7 @@ const upload = multer({
 
   // Rota raiz - servir a interface HTML
   app.get("/", (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.sendFile(path.join(__dirname, 'public', 'home.html'));
   });
 
   // Rota de teste - Popular banco com dados

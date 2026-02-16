@@ -78,6 +78,9 @@ body {
     color: var(--brown-light) !important;
     letter-spacing: 0.2px;
 }
+.ms{
+    pointer-events: auto; 
+}
 
 /* Nav buttons: force brown accents and hover behavior */
 .nav-btn {

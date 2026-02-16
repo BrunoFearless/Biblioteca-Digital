@@ -264,7 +264,7 @@
 <body>
     <div class="container">
         <div class="logo-section">
-            <h1>📚 Biblioteca Digital</h1>
+            <h1 onclick="irParaHome()" class="ms">📚 Biblioteca Digital</h1>
             <p>Sistema de Gerenciamento de Livros e Empréstimos</p>
         </div>
 
@@ -349,6 +349,11 @@
 
     <script>
         let modoAtual = null;
+
+        // Função para navegar para a home (pode ser chamada após login bem-sucedido)
+        function irParaHome() {
+        window.location.href = 'home.html';
+        }
 
         function selectMode(modo) {
             modoAtual = modo;
