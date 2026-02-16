@@ -506,7 +506,11 @@
             document.getElementById(section).classList.add('active');
             event.target.classList.add('active');
 
-            if (section === 'catalogo') loadCatalogo();
+            if (section === 'catalogo') {
+                Promise.all([carregarEmprestimosDoServidor(), carregarReservasDoServidor()])
+                    .then(() => loadCatalogo())
+                    .catch(err => { console.error('Erro ao carregar dados do catálogo:', err); loadCatalogo(); });
+            }
             else if (section === 'meus-emprestimos') {
                 carregarEmprestimosDoServidor().then(() => loadMeusEmprestimos());
             }
@@ -567,12 +571,16 @@
                                         : '❌ Indisponível'}
                                 </div>
                                 <div class="action-buttons">
-                                    <button class="btn-action btn-borrow" 
+                                        <button class="btn-action btn-borrow" 
+                                            data-livro-id="${livro.id}"
+                                            data-titulo="${livro.titulo.replace(/'/g, "\\'") }"
                                             onclick="console.log('Clicado em Pegar - Livro:', ${livro.id}); abrirModal('borrow', ${livro.id}, '${livro.titulo.replace(/'/g, "\\'")}')"
                                             ${jaPegueiEmprestado || livro.estoque === 0 ? 'disabled' : ''}>
                                         ${jaPegueiEmprestado ? '✓ Pegado' : 'Pegar'}
                                     </button>
-                                    <button class="btn-action btn-reserve" 
+                                        <button class="btn-action btn-reserve" 
+                                            data-livro-id="${livro.id}"
+                                            data-titulo="${livro.titulo.replace(/'/g, "\\'") }"
                                             onclick="console.log('Clicado em Reservar - Livro:', ${livro.id}); abrirModal('reserve', ${livro.id}, '${livro.titulo.replace(/'/g, "\\'")}')"
                                             ${jaReservei ? 'disabled' : ''}>
                                         ${jaReservei ? '✓ Reservado' : 'Reservar'}
@@ -620,7 +628,7 @@
                                             </span>
                                         </td>
                                         <td>
-                                            ${!e.devolvido ? `<button class="btn-action btn-reserve" onclick="abrirModal('return', ${e.id}, '')">Devolver</button>` : '-'}
+                                            ${!e.devolvido ? `<button class="btn-action btn-return" data-emprestimo-id="${e.id}" onclick="abrirModal('return', ${e.id}, '')">Devolver</button>` : '-'}
                                         </td>
                                     </tr>
                                 `).join('')}
@@ -680,6 +688,7 @@
         }
 
         function abrirModal(acao, livroId, titulo) {
+            console.log('abrirModal chamado', acao, livroId, titulo);
             acaoAtual = acao;
             livroAtual = livroId;
 
@@ -701,7 +710,7 @@
             document.getElementById('modal').classList.remove('active');
         }
 
-        function confirmarAcao() {
+        async function confirmarAcao() {
             console.log('=== CONFIRMAR AÇÃO ===');
             console.log('Ação:', acaoAtual);
             console.log('Livro ID:', livroAtual);
@@ -721,6 +730,24 @@
                 return;
             }
             
+            // Ensure the livro exists in the current catalog before any action
+            if (acaoAtual === 'borrow' || acaoAtual === 'reserve') {
+                if (!livrosLocal.some(l => l.id === livroAtual)) {
+                    console.log('Livro não encontrado localmente, recarregando catálogo...');
+                    try {
+                        await loadCatalogo();
+                    } catch (err) {
+                        console.error('Falha ao recarregar catálogo:', err);
+                    }
+
+                    if (!livrosLocal.some(l => l.id === livroAtual)) {
+                        alert('Livro não encontrado no catálogo. Atualize a página e tente novamente.');
+                        fecharModal();
+                        return;
+                    }
+                }
+            }
+
             if (acaoAtual === 'borrow') {
                 console.log('Iniciando empréstimo de livro...');
                 const dataDevolucao = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -765,7 +792,7 @@
                     alert('❌ Erro: ' + e.message + '\n\nTente novamente.');
                     fecharModal();
                 });
-            } 
+            }
             else if (acaoAtual === 'reserve') {
                 console.log('Iniciando reserva de livro...');
                 const dados = {
@@ -839,13 +866,54 @@
             }
         }
 
-        function cancelarReserva(id) {
-            reservasLocal = reservasLocal.map(r => 
-                r.id === id ? {...r, status: 'cancelada'} : r
-            );
-            localStorage.setItem(`reservas_${usuarioAtual.id}`, JSON.stringify(reservasLocal));
-            alert('❌ Reserva cancelada');
-            loadMinhasReservas();
+        // Event delegation: captura cliques em botões de reserva/pegar caso onclick inline falhe
+        document.addEventListener('click', function(e) {
+            try {
+                const target = e.target;
+                if (!target || !target.classList) return;
+
+                // Delegation para Reservar
+                if (target.classList.contains('btn-reserve')) {
+                    console.log('Delegation: botão Reservar clicado, tentando abrir modal...');
+                    const dataId = target.dataset.livroId;
+                    const dataTitulo = target.dataset.titulo || '';
+                    const id = dataId ? Number(dataId) : (typeof livroAtual === 'number' ? livroAtual : null);
+                    abrirModal('reserve', id, dataTitulo);
+                }
+
+                // Delegation para Pegar (fallback)
+                if (target.classList.contains('btn-borrow')) {
+                    console.log('Delegation: botão Pegar clicado, tentando abrir modal...');
+                    const dataId = target.dataset.livroId;
+                    const dataTitulo = target.dataset.titulo || '';
+                    const id = dataId ? Number(dataId) : (typeof livroAtual === 'number' ? livroAtual : null);
+                    abrirModal('borrow', id, dataTitulo);
+                }
+            } catch (err) {
+                console.error('Erro no event delegation:', err);
+            }
+        });
+
+        async function cancelarReserva(id) {
+            try {
+                const res = await fetch(`/api/reservas/${id}/cancelar`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    // Recarregar reservas do servidor e atualizar UI
+                    await carregarReservasDoServidor();
+                    loadMinhasReservas();
+                    alert('✅ Reserva cancelada com sucesso');
+                } else {
+                    console.error('Erro ao cancelar reserva:', data);
+                    throw new Error(data.error || data.message || 'Erro ao cancelar reserva');
+                }
+            } catch (e) {
+                console.error('Falha ao cancelar reserva:', e);
+                alert('❌ Falha ao cancelar reserva. Tente novamente.');
+            }
         }
 
         function getGradientColor(text) {
@@ -862,10 +930,15 @@
             window.location.href = '/index.html';
         }
 
-        // Carregar dados ao iniciar
-        carregarEmprestimosDoServidor();
-        carregarReservasDoServidor();
-        loadCatalogo();
+        // Carregar dados ao iniciar (aguardar sincronização antes de renderizar)
+        (async function init() {
+            try {
+                await Promise.all([carregarEmprestimosDoServidor(), carregarReservasDoServidor()]);
+            } catch (e) {
+                console.error('Erro ao carregar dados iniciais:', e);
+            }
+            loadCatalogo();
+        })();
     </script>
 </body>
 </html>

@@ -282,6 +282,25 @@ app.get("/api/reservas", async (req, res) => {
   }
 });
 
+// API - Cancelar Reserva
+app.put("/api/reservas/:id/cancelar", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const connection = await createConnection();
+
+    const [rows] = await connection.execute("SELECT * FROM reservas WHERE id = ?", [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Reserva não encontrada" });
+    }
+
+    await connection.execute("UPDATE reservas SET status = 'cancelada' WHERE id = ?", [id]);
+
+    return res.status(200).json({ message: "Reserva cancelada com sucesso" });
+  } catch (error) {
+    return res.status(500).json({ error: "Erro ao cancelar reserva", details: error.message });
+  }
+});
+
 // API - Marcar Empréstimo como Devolvido
 app.put("/api/emprestimos/:id/devolver", async (req, res) => {
   try {
