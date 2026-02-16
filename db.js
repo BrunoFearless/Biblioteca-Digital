@@ -44,9 +44,12 @@ async function initializeDatabase() {
         estoque INT NOT NULL,
         vezes_emprestado INT DEFAULT 0,
         emprestimos_ativos INT DEFAULT 0,
-        capa_url VARCHAR(500)
+        capa_url VARCHAR(500),
+        descricao TEXT
       );
     `);
+    // Adiciona coluna descricao se não existir (para migração)
+    await connection.query(`ALTER TABLE livros ADD COLUMN descricao TEXT NULL;`).catch(()=>{});
 
     await connection.query(`
       CREATE TABLE IF NOT EXISTS usuarios (
@@ -55,10 +58,13 @@ async function initializeDatabase() {
         endereco VARCHAR(255) NOT NULL,
         email VARCHAR(255) NOT NULL,
         telefone VARCHAR(15) NOT NULL,
+        tipo ENUM('aluno','professor') DEFAULT 'aluno',
         quantidade_emprestimos INT DEFAULT 0,
         emprestimo_ativo BOOLEAN DEFAULT FALSE
       );
     `);
+    // Adiciona coluna tipo se não existir (para migração)
+    await connection.query(`ALTER TABLE usuarios ADD COLUMN tipo ENUM('aluno','professor') DEFAULT 'aluno';`).catch(()=>{});
 
     await connection.query(`
       CREATE TABLE IF NOT EXISTS emprestimos (

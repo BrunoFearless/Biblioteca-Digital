@@ -7,6 +7,7 @@ const usuarioSchema = z.object({
   telefone: z.string().regex(/^\d{10,15}$/, {
     message: "O telefone deve ter entre 10 e 15 dígitos numéricos",
   }),
+  tipo: z.enum(["aluno", "professor"], { message: "O tipo deve ser 'aluno' ou 'professor'" })
 });
 
 export default usuarioSchema;

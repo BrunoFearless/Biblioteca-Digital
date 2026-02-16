@@ -8,6 +8,7 @@ const livroSchema = z.object({
     .string()
     .regex(/^\d{4}$/, { message: "O ano de publicação deve ter 4 dígitos" })
     .transform((val) => parseInt(val)),
+  descricao: z.string().max(1000, { message: "A descrição deve ter no máximo 1000 caracteres" }).optional(),
 });
 
 export default livroSchema;

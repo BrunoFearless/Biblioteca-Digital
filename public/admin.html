@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin - Biblioteca Digital</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * {
             margin: 0;
@@ -198,22 +199,25 @@
 
         .data-table thead {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: rgb(0, 0, 0);
+            color: #ffffff;
         }
 
         .data-table th {
             padding: 15px;
             text-align: left;
             font-weight: bold;
+            color: #ffffff;
         }
 
         .data-table td {
             padding: 12px 15px;
             border-bottom: 1px solid #ddd;
+            color: #000000;
+            font-weight: 500;
         }
 
         .data-table tbody tr:hover {
-            background: #f9f9f9;
+            background: #f0f0f0;
         }
 
         .stats {
@@ -242,6 +246,23 @@
             font-size: 1em;
         }
 
+        .chart-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 30px 0;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            position: relative;
+            height: 400px;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 30px;
+            margin: 30px 0;
+        }
+
         .action-btn {
             padding: 6px 12px;
             margin: 2px;
@@ -252,22 +273,22 @@
             transition: all 0.3s;
         }
 
-        .btn-edit {
-            background: #3498db;
+        .btn-info {
+            background: linear-gradient(90deg, #2F5DA8, #1E57C6);
             color: white;
         }
 
-        .btn-edit:hover {
-            background: #2980b9;
+        .btn-info:hover {
+            transform: translateY(-4px);
         }
 
-        .btn-delete {
-            background: #e74c3c;
+        .btn-danger {
+            background: linear-gradient(90deg, #C62828, #A61B1B);
             color: white;
         }
 
-        .btn-delete:hover {
-            background: #c0392b;
+        .btn-danger:hover {
+            transform: translateY(-4px);
         }
 
         .btn-primary {
@@ -331,6 +352,8 @@
             border-radius: 10px;
             width: 90%;
             max-width: 500px;
+            max-height: 85vh;
+            overflow-y: auto;
             box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
             animation: slideIn 0.3s ease-in;
         }
@@ -376,6 +399,8 @@
 
         #formLivro {
             padding: 30px;
+            max-height: calc(85vh - 140px);
+            overflow-y: auto;
         }
 
         .form-group {
@@ -447,6 +472,7 @@
             background: #764ba2;
         }
     </style>
+    <link rel="stylesheet" href="/css/theme.css">
 </head>
 <body>
     <div class="container">
@@ -463,6 +489,7 @@
             <button class="nav-btn" onclick="showSection('livros')">📚 Livros</button>
             <button class="nav-btn" onclick="showSection('usuarios')">👥 Usuários</button>
             <button class="nav-btn" onclick="showSection('emprestimos')">🔄 Empréstimos</button>
+            <button class="nav-btn" onclick="showSection('reservas')">⭐ Reservas</button>
             <button class="nav-btn" onclick="showSection('relatorios')">📈 Relatórios</button>
         </div>
 
@@ -487,6 +514,11 @@
             <div id="emprestimosContent" class="loading">Carregando empréstimos...</div>
         </div>
 
+        <!-- Reservas -->
+        <div id="reservas" class="content-section">
+            <div id="reservasContent" class="loading">Carregando reservas...</div>
+        </div>
+
         <!-- Relatórios -->
         <div id="relatorios" class="content-section">
             <div id="relatoriosContent" class="loading">Carregando relatórios...</div>
@@ -499,7 +531,7 @@
                     <h2 id="modalTitulo">Adicionar Novo Livro</h2>
                     <button class="close" onclick="fecharModal()">&times;</button>
                 </div>
-                <form id="formLivro">
+                <form id="formLivro" onsubmit="salvarLivro(event)">
                     <div class="form-group">
                         <label>Título</label>
                         <input type="text" id="formTitulo" required>
@@ -519,6 +551,10 @@
                             <option value="Romance">Romance</option>
                             <option value="Científico">Científico</option>
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Descrição</label>
+                        <textarea id="formDescricao" rows="3" maxlength="1000" placeholder="Digite uma descrição do livro..." style="resize: vertical; width: 100%;"></textarea>
                     </div>
                     <div class="form-group">
                         <label>Ano de Publicação</label>
@@ -547,33 +583,98 @@
                 </form>
             </div>
         </div>
+
+        <!-- Modal Detalhes Usuário -->
+        <div id="modalUsuario" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Detalhes do Usuário</h2>
+                    <button class="close" onclick="fecharModalUsuario()">&times;</button>
+                </div>
+                <div id="modalUsuarioContent" style="padding: 30px;">
+                    <div style="margin-bottom: 20px;">
+                        <p><strong>Nome:</strong> <span id="usuarioNome"></span></p>
+                        <p><strong>Email:</strong> <span id="usuarioEmail"></span></p>
+                        <p><strong>Telefone:</strong> <span id="usuarioTelefone"></span></p>
+                        <p><strong>Endereço:</strong> <span id="usuarioEndereco"></span></p>
+                    </div>
+                    <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+                    <h3 style="color: #667eea; margin-bottom: 15px;">📚 Empréstimos Ativos</h3>
+                    <div id="usuarioEmprestimos" style="margin-bottom: 20px;">
+                        <p style="color: #666; font-size: 0.9em;">Carregando...</p>
+                    </div>
+                    <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+                    <h3 style="color: #667eea; margin-bottom: 15px;">⭐ Reservas Ativas</h3>
+                    <div id="usuarioReservas" style="margin-bottom: 20px;">
+                        <p style="color: #666; font-size: 0.9em;">Carregando...</p>
+                    </div>
+                    <div style="text-align: right; margin-top: 20px;">
+                        <button type="button" class="btn-cancel" onclick="fecharModalUsuario()">Fechar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
         // Verificar se está logado como admin
         if (sessionStorage.getItem('modo') !== 'admin') {
-            window.location.href = '/index.html';
+            delayedNavigate('/index.html');
         }
 
         // Modal para livros
         let modalLivro = null;
 
+        // Adicionar listener para preview do arquivo
+        document.addEventListener('DOMContentLoaded', function() {
+            const capaArquivoInput = document.getElementById('formCapaArquivo');
+            if (capaArquivoInput) {
+                capaArquivoInput.addEventListener('change', function(e) {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = function(event) {
+                            document.getElementById('capaImg').src = event.target.result;
+                            document.getElementById('capaPreview').style.display = 'block';
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+            }
+        });
+
         function showSection(section) {
-            document.querySelectorAll('.content-section').forEach(el => {
-                el.classList.remove('active');
-            });
-            document.querySelectorAll('.nav-btn').forEach(el => {
-                el.classList.remove('active');
-            });
+            const current = document.querySelector('.content-section.active');
+            const activate = () => {
+                document.querySelectorAll('.content-section').forEach(el => el.classList.remove('active'));
+                document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+                const target = document.getElementById(section);
+                if (target) {
+                    target.classList.add('active', 'section-enter');
+                    setTimeout(() => target.classList.remove('section-enter'), 380);
+                }
+                // mark nav button active (best-effort)
+                document.querySelectorAll('.nav-btn').forEach(btn => {
+                    const onclick = btn.getAttribute('onclick') || '';
+                    if (onclick.includes(section)) btn.classList.add('active');
+                });
+                if (section === 'dashboard') loadDashboard();
+                else if (section === 'livros') loadLivros();
+                else if (section === 'usuarios') loadUsuarios();
+                else if (section === 'emprestimos') loadEmprestimos();
+                else if (section === 'reservas') loadReservas();
+                else if (section === 'relatorios') loadRelatorios();
+            };
 
-            document.getElementById(section).classList.add('active');
-            event.target.classList.add('active');
-
-            if (section === 'dashboard') loadDashboard();
-            else if (section === 'livros') loadLivros();
-            else if (section === 'usuarios') loadUsuarios();
-            else if (section === 'emprestimos') loadEmprestimos();
-            else if (section === 'relatorios') loadRelatorios();
+            if (current && current.id !== section) {
+                current.classList.add('section-exit');
+                setTimeout(() => {
+                    current.classList.remove('active', 'section-exit');
+                    activate();
+                }, 260);
+            } else {
+                activate();
+            }
         }
 
         async function loadDashboard() {
@@ -611,21 +712,29 @@
                         <table class="data-table">
                             <thead>
                                 <tr>
+                                    <th>ID</th>
                                     <th>Usuário</th>
+                                    <th>Tipo</th>
                                     <th>Livro</th>
                                     <th>Data Empréstimo</th>
                                     <th>Status</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                ${emprestimos.slice(-5).reverse().map(e => `
+                                ${emprestimos.slice(-5).reverse().map(e => {
+                                    const usuario = usuarios.find(u => u.id === e.usuario_id) || {};
+                                    const livro = livros.find(l => l.id === e.livro_id) || {};
+                                    return `
                                     <tr>
-                                        <td>${e.usuario_id}</td>
-                                        <td>${e.livro_id}</td>
+                                        <td>${e.id}</td>
+                                        <td>${usuario.nome || 'Desconhecido'}</td>
+                                        <td>${usuario.tipo ? (usuario.tipo.charAt(0).toUpperCase() + usuario.tipo.slice(1)) : 'Aluno'}</td>
+                                        <td>${livro.titulo || 'Desconhecido'}</td>
                                         <td>${new Date(e.data_emprestimo).toLocaleDateString()}</td>
                                         <td>${e.devolvido ? '✅ Devolvido' : '⏳ Pendente'}</td>
                                     </tr>
-                                `).join('')}
+                                    `;
+                                }).join('')}
                             </tbody>
                         </table>
                     </div>
@@ -649,11 +758,17 @@
                     livros.forEach(livro => {
                         const stockClass = livro.estoque > 2 ? 'stock-available' : livro.estoque > 0 ? 'stock-low' : 'stock-unavailable';
                         const stockText = livro.estoque > 0 ? `${livro.estoque} em estoque` : 'Indisponível';
-                        
+                        const capaUrl = (function(){
+                            if (!livro.capa_url) return null;
+                            let raw = String(livro.capa_url).replace(/\\/g, '/');
+                            raw = raw.replace(/^\/+/, '');
+                            return raw.startsWith('http') ? raw : ('/' + raw);
+                        })();
+
                         html += `
                             <div class="book-card">
-                                <div class="book-cover" style="${livro.capa_url ? `background-image: url('${livro.capa_url}'); background-size: cover; background-position: center;` : `background: linear-gradient(135deg, ${getGradientColor(livro.titulo)} 0%, ${getGradientColor(livro.autor)} 100%);`}">
-                                    ${!livro.capa_url ? '<span>📚</span>' : ''}
+                                <div class="book-cover" style="${capaUrl ? `background-image: url('${capaUrl}'); background-size: cover; background-position: center;` : `background: linear-gradient(135deg, ${getGradientColor(livro.titulo)} 0%, ${getGradientColor(livro.autor)} 100%);`}">
+                                    ${!capaUrl ? '<span>📚</span>' : ''}
                                 </div>
                                 <div class="book-info">
                                     <div class="book-title">${livro.titulo}</div>
@@ -666,8 +781,8 @@
                                         <span class="stock-badge ${stockClass}">${stockText}</span>
                                     </div>
                                     <div>
-                                        <button class="action-btn btn-edit" onclick="editarLivro(${livro.id})">✏️ Editar</button>
-                                        <button class="action-btn btn-delete" onclick="deletarLivro(${livro.id})">🗑️ Deletar</button>
+                                        <button class="action-btn btn-info" onclick="editarLivro(${livro.id})">✏️ Editar</button>
+                                        <button class="action-btn btn-danger" onclick="deletarLivro(${livro.id})">🗑️ Deletar</button>
                                     </div>
                                 </div>
                             </div>
@@ -701,6 +816,7 @@
                                     <tr>
                                         <th>Nome</th>
                                         <th>Email</th>
+                                        <th>Tipo</th>
                                         <th>Telefone</th>
                                         <th>Endereço</th>
                                         <th>Emp. Ativos</th>
@@ -716,12 +832,13 @@
                                         <tr>
                                             <td>${u.nome}</td>
                                             <td>${u.email}</td>
+                                            <td>${u.tipo ? (u.tipo.charAt(0).toUpperCase() + u.tipo.slice(1)) : 'Aluno'}</td>
                                             <td>${u.telefone}</td>
                                             <td>${u.endereco}</td>
                                             <td style="color: ${empAtivos > 0 ? '#f39c12' : '#27ae60'}; font-weight: bold;">${empAtivos}</td>
                                             <td style="color: #3498db; font-weight: bold;">${resAtivas}</td>
                                             <td>
-                                                <button class="action-btn btn-edit" onclick="verDetalhesUsuario(${u.id})">📋 Detalhes</button>
+                                                <button class="action-btn btn-info" onclick="verDetalhesUsuario(${u.id})">📋 Detalhes</button>
                                             </td>
                                         </tr>
                                     `}).join('')}
@@ -756,6 +873,7 @@
                                     <tr>
                                         <th>ID</th>
                                         <th>Usuário</th>
+                                        <th>Tipo</th>
                                         <th>Livro</th>
                                         <th>Data Empréstimo</th>
                                         <th>Data Devolução</th>
@@ -771,12 +889,13 @@
                                         <tr>
                                             <td>${e.id}</td>
                                             <td>${usuario?.nome || 'Desconhecido'}</td>
+                                            <td>${usuario?.tipo ? (usuario.tipo.charAt(0).toUpperCase() + usuario.tipo.slice(1)) : 'Aluno'}</td>
                                             <td>${livro?.titulo || 'Desconhecido'}</td>
                                             <td>${new Date(e.data_emprestimo).toLocaleDateString()}</td>
                                             <td>${new Date(e.data_devolucao).toLocaleDateString()}</td>
                                             <td>${e.devolvido ? '✅ Devolvido' : '⏳ Pendente'}</td>
                                             <td>
-                                                ${!e.devolvido ? `<button class="action-btn btn-edit" onclick="marcarDevolvido(${e.id})">✔️ Marcar Devolvido</button>` : ''}
+                                                ${!e.devolvido ? `<button class="action-btn btn-success" onclick="marcarDevolvido(${e.id})">✔️ Marcar Devolvido</button>` : ''}
                                                 <button class="action-btn btn-delete" onclick="deletarEmprestimo(${e.id})">🗑️ Deletar</button>
                                             </td>
                                         </tr>
@@ -795,62 +914,318 @@
 
         async function loadRelatorios() {
             try {
-                const [livrosMaisEmprestados, emprestimosPendentes] = await Promise.all([
+                const [livrosMaisEmprestados, emprestimosPendentes, emprestimos, reservas, livros, usuarios] = await Promise.all([
                     fetch('/api/relatorios/livros-mais-emprestados').then(r => r.json()),
-                    fetch('/api/relatorios/emprestimos-pendentes').then(r => r.json())
+                    fetch('/api/relatorios/emprestimos-pendentes').then(r => r.json()),
+                    fetch('/api/emprestimos').then(r => r.json()),
+                    fetch('/api/reservas').then(r => r.json()),
+                    fetch('/api/livros').then(r => r.json()),
+                    fetch('/api/usuarios').then(r => r.json())
                 ]);
 
                 const html = `
-                    <h2 style="color: white; margin-bottom: 20px;">📊 Livros Mais Emprestados</h2>
+                    <h2 style="color: white; margin-bottom: 20px;">📊 Resumo Geral</h2>
+                    <div class="stats">
+                        <div class="stat-card">
+                            <h3>${emprestimos.length}</h3>
+                            <p>Total de Empréstimos</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>${reservas.length}</h3>
+                            <p>Total de Reservas</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>${emprestimos.filter(e => !e.devolvido).length}</h3>
+                            <p>Empréstimos Pendentes</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>${reservas.filter(r => r.status === 'ativa').length}</h3>
+                            <p>Reservas Ativas</p>
+                        </div>
+                    </div>
+
+                    <h2 style="color: white; margin: 30px 0 20px 0;">� Gráficos</h2>
+                    <div class="charts-grid">
+                        <div class="chart-container">
+                            <canvas id="chartLivrosMais"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="chartReserveStatus"></canvas>
+                        </div>
+                    </div>
+
+                    <h2 style="color: white; margin: 30px 0 20px 0;">📚 Top 10 Livros Mais Emprestados</h2>
                     <div class="table-container">
                         <table class="data-table">
                             <thead>
                                 <tr>
+                                    <th>Ranking</th>
                                     <th>Título</th>
                                     <th>Autor</th>
                                     <th>Vezes Emprestado</th>
+                                    <th>Gênero</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                ${livrosMaisEmprestados.map(l => `
+                                ${livrosMaisEmprestados.slice(0, 10).map((l, idx) => `
                                     <tr>
-                                        <td>${l.titulo}</td>
+                                        <td><strong>#${idx + 1}</strong></td>
+                                        <td><strong>${l.titulo}</strong></td>
                                         <td>${l.autor}</td>
-                                        <td><strong>${l.vezes_emprestado}</strong></td>
+                                        <td style="color: #2ecc71; font-weight: bold;">${l.vezes_emprestado}</td>
+                                        <td>${l.genero || '-'}</td>
                                     </tr>
                                 `).join('')}
                             </tbody>
                         </table>
                     </div>
 
-                    <h2 style="color: white; margin: 30px 0 20px 0;">⏳ Empréstimos Pendentes</h2>
+                    <h2 style="color: white; margin: 30px 0 20px 0;">⏳ Empréstimos Pendentes de Devolução</h2>
                     <div class="table-container">
                         <table class="data-table">
                             <thead>
                                 <tr>
                                     <th>Usuário</th>
+                                    <th>Tipo</th>
                                     <th>Email</th>
                                     <th>Livro</th>
                                     <th>Data Empréstimo</th>
+                                    <th>Data Devolução (esperada)</th>
+                                    <th>Dias de Atraso</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                ${emprestimosPendentes.map(e => `
+                                ${emprestimosPendentes.map(e => {
+                                    const diasAtraso = Math.floor((new Date() - new Date(e.data_devolucao)) / (1000 * 60 * 60 * 24));
+                                    const corAtraso = diasAtraso > 0 ? '#e74c3c' : '#27ae60';
+                                    return `
                                     <tr>
-                                        <td>${e.nome}</td>
+                                        <td><strong>${e.nome}</strong></td>
+                                        <td>${e.tipo ? (e.tipo.charAt(0).toUpperCase() + e.tipo.slice(1)) : 'Aluno'}</td>
                                         <td>${e.email}</td>
                                         <td>${e.titulo}</td>
                                         <td>${new Date(e.data_emprestimo).toLocaleDateString()}</td>
+                                        <td>${new Date(e.data_devolucao).toLocaleDateString()}</td>
+                                        <td style="color: ${corAtraso}; font-weight: bold;">${diasAtraso > 0 ? `${diasAtraso} dias atrasado` : 'No prazo'}</td>
                                     </tr>
-                                `).join('')}
+                                `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h2 style="color: white; margin: 30px 0 20px 0;">⭐ Reservas Ativas</h2>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Usuário</th>
+                                    <th>Tipo</th>
+                                    <th>Email</th>
+                                    <th>Livro</th>
+                                    <th>Data da Reserva</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${reservas.filter(r => r.status !== 'cancelada').map(r => {
+                                    const usuario = usuarios.find(u => u.id === r.usuario_id) || {};
+                                    const livro = livros.find(l => l.id === r.livro_id) || {};
+                                    return `
+                                    <tr>
+                                        <td><strong>${usuario.nome || 'Desconhecido'}</strong></td>
+                                        <td>${usuario.tipo ? (usuario.tipo.charAt(0).toUpperCase() + usuario.tipo.slice(1)) : 'Aluno'}</td>
+                                        <td>${usuario.email || '-'}</td>
+                                        <td>${livro.titulo || 'Desconhecido'}</td>
+                                        <td>${new Date(r.data_reserva).toLocaleDateString()}</td>
+                                        <td><span style="background: #cce5ff; color: #004085; padding: 5px 10px; border-radius: 15px; font-weight: bold;">✅ ${r.status}</span></td>
+                                    </tr>
+                                `;
+                                }).join('')}
                             </tbody>
                         </table>
                     </div>
                 `;
 
                 document.getElementById('relatoriosContent').innerHTML = html;
+
+                // Aguardar renderização antes de criar gráficos
+                setTimeout(() => {
+                    criarGraficoLivrosMais(livrosMaisEmprestados);
+                    criarGraficoReserveStatus(reservas);
+                }, 100);
             } catch (error) {
                 document.getElementById('relatoriosContent').innerHTML = `<div class="empty-state">Erro ao carregar relatórios</div>`;
+            }
+        }
+
+        function criarGraficoLivrosMais(livrosMaisEmprestados) {
+            try {
+                const top5 = livrosMaisEmprestados.slice(0, 5);
+                const ctx = document.getElementById('chartLivrosMais');
+                if (!ctx) return;
+
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: top5.map(l => l.titulo.substring(0, 20)),
+                        datasets: [{
+                            label: 'Vezes Emprestado',
+                            data: top5.map(l => l.vezes_emprestado),
+                            backgroundColor: [
+                                '#FF6384',
+                                '#36A2EB',
+                                '#FFCE56',
+                                '#4BC0C0',
+                                '#9966FF'
+                            ],
+                            borderColor: [
+                                '#FF6384',
+                                '#36A2EB',
+                                '#FFCE56',
+                                '#4BC0C0',
+                                '#9966FF'
+                            ],
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Top 5 Livros Mais Emprestados',
+                                font: { size: 16, weight: 'bold' },
+                                color: '#333'
+                            },
+                            legend: {
+                                display: true,
+                                labels: { color: '#333', font: { size: 12 } }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { color: '#333' },
+                                grid: { color: 'rgba(0, 0, 0, 0.1)' }
+                            },
+                            x: {
+                                ticks: { color: '#333' },
+                                grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                            }
+                        }
+                    }
+                });
+            } catch (e) {
+                console.error('Erro ao criar gráfico de livros:', e);
+            }
+        }
+
+        function criarGraficoReserveStatus(reservas) {
+            try {
+                const statusCount = {
+                    ativa: reservas.filter(r => r.status === 'ativa').length,
+                    cancelada: reservas.filter(r => r.status === 'cancelada').length,
+                    efetivada: reservas.filter(r => r.status === 'efetivada').length
+                };
+
+                const ctx = document.getElementById('chartReserveStatus');
+                if (!ctx) return;
+
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Ativa', 'Cancelada', 'Efetivada'],
+                        datasets: [{
+                            data: [statusCount.ativa, statusCount.cancelada, statusCount.efetivada],
+                            backgroundColor: [
+                                '#3498db',
+                                '#e74c3c',
+                                '#2ecc71'
+                            ],
+                            borderColor: [
+                                '#2980b9',
+                                '#c0392b',
+                                '#27ae60'
+                            ],
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Distribuição de Reservas por Status',
+                                font: { size: 16, weight: 'bold' },
+                                color: '#333'
+                            },
+                            legend: {
+                                display: true,
+                                position: 'bottom',
+                                labels: { color: '#333', font: { size: 12 }, padding: 15 }
+                            }
+                        }
+                    }
+                });
+            } catch (e) {
+                console.error('Erro ao criar gráfico de reservas:', e);
+            }
+        }
+
+        async function loadReservas() {
+            try {
+                const [reservas, livros, usuarios] = await Promise.all([
+                    fetch('/api/reservas').then(r => r.json()),
+                    fetch('/api/livros').then(r => r.json()),
+                    fetch('/api/usuarios').then(r => r.json())
+                ]);
+
+                let html = '';
+                if (reservas.length === 0) {
+                    html = '<div class="empty-state">Nenhuma reserva registrada</div>';
+                } else {
+                    html = `
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Usuário</th>
+                                        <th>Tipo</th>
+                                        <th>Email</th>
+                                        <th>Livro</th>
+                                        <th>Data Reserva</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${reservas.map(r => {
+                                        const usuario = usuarios.find(u => u.id === r.usuario_id);
+                                        const livro = livros.find(l => l.id === r.livro_id);
+                                        const statusColor = r.status === 'ativa' ? '#3498db' : r.status === 'cancelada' ? '#e74c3c' : '#27ae60';
+                                        return `
+                                        <tr>
+                                            <td>${r.id}</td>
+                                            <td><strong>${usuario?.nome || 'Desconhecido'}</strong></td>
+                                            <td>${usuario?.tipo ? (usuario.tipo.charAt(0).toUpperCase() + usuario.tipo.slice(1)) : 'Aluno'}</td>
+                                            <td>${usuario?.email || 'N/A'}</td>
+                                            <td>${livro?.titulo || 'Desconhecido'}</td>
+                                            <td>${new Date(r.data_reserva).toLocaleDateString()}</td>
+                                            <td><span style="background: ${statusColor}20; color: ${statusColor}; padding: 5px 10px; border-radius: 15px; font-weight: bold;">${r.status}</span></td>
+                                        </tr>
+                                    `}).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                }
+
+                document.getElementById('reservasContent').innerHTML = html;
+            } catch (error) {
+                document.getElementById('reservasContent').innerHTML = `<div class="empty-state">Erro ao carregar reservas</div>`;
             }
         }
 
@@ -871,68 +1246,70 @@
                 document.getElementById('formAno').value = new Date().getFullYear();
                 document.getElementById('formEstoque').value = 1;
                 document.getElementById('capaPreview').style.display = 'none';
+                document.getElementById('formCapaArquivo').value = '';
                 modalLivro = 'novo';
+                abrirModal();
             } else {
                 // Editar livro existente
+                console.log('Carregando livro com ID:', id);
                 document.getElementById('modalTitulo').textContent = 'Editar Livro';
+                
                 fetch(`/api/livros/${id}`)
-                    .then(r => r.json())
+                    .then(r => {
+                        console.log('Resposta do GET /api/livros/:id:', r.status);
+                        if (!r.ok) {
+                            throw new Error(`Erro ao carregar livro: ${r.status}`);
+                        }
+                        return r.json();
+                    })
                     .then(livro => {
-                        document.getElementById('formTitulo').value = livro.titulo;
-                        document.getElementById('formAutor').value = livro.autor;
-                        document.getElementById('formGenero').value = livro.genero;
-                        document.getElementById('formAno').value = livro.ano_publicacao;
-                        document.getElementById('formEstoque').value = livro.estoque;
+                        console.log('Dados do livro carregados:', livro);
+                        document.getElementById('formTitulo').value = livro.titulo || '';
+                        document.getElementById('formAutor').value = livro.autor || '';
+                        document.getElementById('formGenero').value = livro.genero || '';
+                        document.getElementById('formAno').value = livro.ano_publicacao || new Date().getFullYear();
+                        document.getElementById('formEstoque').value = livro.estoque || 1;
                         document.getElementById('formCapaUrl').value = livro.capa_url || '';
-                        
-                        // Mostrar preview da capa atual
+                        document.getElementById('formCapaArquivo').value = '';
+                        document.getElementById('formDescricao').value = livro.descricao || '';
+
+                        // Mostrar preview da capa atual (normalizar caminho e barras)
                         if (livro.capa_url) {
-                            document.getElementById('capaImg').src = livro.capa_url;
+                            let raw = String(livro.capa_url).replace(/\\/g, '/');
+                            raw = raw.replace(/^\/+/, '');
+                            const capaUrl = raw.startsWith('http') ? raw : ('/' + raw);
+                            document.getElementById('capaImg').src = capaUrl;
                             document.getElementById('capaPreview').style.display = 'block';
                         } else {
                             document.getElementById('capaPreview').style.display = 'none';
                         }
                         
                         modalLivro = id;
+                        console.log('modalLivro setado para:', modalLivro);
+                        abrirModal();
                     })
                     .catch(err => {
                         console.error('Erro ao carregar livro:', err);
-                        alert('Erro ao carregar livro');
+                        alert('Erro ao carregar livro: ' + err.message);
                     });
             }
-            abrirModal();
         }
-
-        // Adicionar listener para preview do arquivo
-        document.addEventListener('DOMContentLoaded', function() {
-            const capaArquivoInput = document.getElementById('formCapaArquivo');
-            if (capaArquivoInput) {
-                capaArquivoInput.addEventListener('change', function(e) {
-                    const file = e.target.files[0];
-                    if (file) {
-                        const reader = new FileReader();
-                        reader.onload = function(event) {
-                            document.getElementById('capaImg').src = event.target.result;
-                            document.getElementById('capaPreview').style.display = 'block';
-                        };
-                        reader.readAsDataURL(file);
-                    }
-                });
-            }
-        });
 
         function abrirModal() {
             document.getElementById('modalLivro').classList.add('show');
-            document.getElementById('formLivro').onsubmit = salvarLivro;
         }
 
         function fecharModal() {
             document.getElementById('modalLivro').classList.remove('show');
+            // Resetar o formulário e campo de arquivo
+            document.getElementById('formLivro').reset();
+            document.getElementById('formCapaArquivo').value = '';
+            document.getElementById('capaPreview').style.display = 'none';
             modalLivro = null;
         }
 
-        async function salvarLivro(e) {
-            e.preventDefault();
+        async function salvarLivro(event) {
+            event.preventDefault();
             
             const titulo = document.getElementById('formTitulo').value.trim();
             const autor = document.getElementById('formAutor').value.trim();
@@ -941,11 +1318,30 @@
             const estoque = document.getElementById('formEstoque').value;
             const capaArquivo = document.getElementById('formCapaArquivo').files[0];
             const capaUrl = document.getElementById('formCapaUrl').value.trim();
+            const descricao = document.getElementById('formDescricao').value.trim();
 
+            // Validação básica
             if (!titulo || !autor || !genero || !ano || !estoque) {
                 alert('Por favor, preencha todos os campos obrigatórios!');
                 return;
             }
+
+            // Desabilitar botão de submit durante o envio
+            let submitBtn = event.target.querySelector('.btn-submit');
+            if (!submitBtn) {
+                console.warn('Botão submit não encontrado, procurando alternativa...');
+                submitBtn = document.querySelector('#formLivro .btn-submit');
+            }
+            
+            if (!submitBtn) {
+                console.error('Botão submit não encontrado em nenhum lugar!');
+                alert('Erro: não foi possível localizar o botão de save');
+                return;
+            }
+
+            const btnText = submitBtn.textContent;
+            submitBtn.disabled = true;
+            submitBtn.textContent = '⏳ Salvando...';
 
             try {
                 const formData = new FormData();
@@ -954,7 +1350,8 @@
                 formData.append('genero', genero);
                 formData.append('ano_publicacao', parseInt(ano));
                 formData.append('estoque', parseInt(estoque));
-                
+                formData.append('descricao', descricao);
+                // Adicionar capa se fornecida
                 if (capaArquivo) {
                     formData.append('capa', capaArquivo);
                 } else if (capaUrl) {
@@ -964,27 +1361,46 @@
                 const url = modalLivro === 'novo' ? '/api/livros' : `/api/livros/${modalLivro}`;
                 const metodo = modalLivro === 'novo' ? 'POST' : 'PUT';
 
-                console.log('Enviando para:', url, 'Metodo:', metodo);
-                
+                console.log(`Enviando ${metodo} para ${url}`, { modalLivro, titulo, autor });
+
                 const res = await fetch(url, {
                     method: metodo,
                     body: formData
                 });
 
-                console.log('Response status:', res.status);
                 const resposta = await res.json();
-                console.log('Resposta:', resposta);
+
+                console.log(`Resposta ${metodo}:`, resposta, 'Status:', res.status);
 
                 if (res.ok) {
-                    alert(modalLivro === 'novo' ? 'Livro adicionado com sucesso! 📚' : 'Livro atualizado com sucesso! ✏️');
+                    const mensagem = modalLivro === 'novo' 
+                        ? 'Livro adicionado com sucesso! 📚' 
+                        : 'Livro atualizado com sucesso! ✏️';
+                    alert(mensagem);
+                    
+                    // Limpar formulário
+                    document.getElementById('formLivro').reset();
+                    document.getElementById('formCapaArquivo').value = '';
+                    document.getElementById('formCapaUrl').value = '';
+                    document.getElementById('capaPreview').style.display = 'none';
+                    
                     fecharModal();
                     loadLivros();
                 } else {
-                    alert('Erro ao salvar livro: ' + resposta.error);
+                    const errorMsg = resposta.error || resposta.message || `Erro HTTP ${res.status}`;
+                    const details = resposta.details || '';
+                    console.error('Erro ao salvar:', errorMsg, details);
+                    alert(`Erro ao salvar livro:\n${errorMsg}\n${details ? 'Detalhes: ' + details : ''}`);
                 }
             } catch (error) {
-                console.error('Erro:', error);
+                console.error('Erro ao salvar livro:', error);
                 alert('Erro ao salvar livro: ' + error.message);
+            } finally {
+                // Reabilitar botão
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = btnText;
+                }
             }
         }
 
@@ -1019,12 +1435,86 @@
         }
 
         function verDetalhesUsuario(id) {
-            alert('Detalhes do usuário em desenvolvimento');
+            // Buscar dados do usuário, empréstimos e reservas
+            Promise.all([
+                fetch('/api/usuarios').then(r => r.json()),
+                fetch('/api/emprestimos').then(r => r.json()),
+                fetch('/api/reservas').then(r => r.json()),
+                fetch('/api/livros').then(r => r.json())
+            ]).then(([usuarios, emprestimos, reservas, livros]) => {
+                const usuario = usuarios.find(u => u.id === id);
+                if (!usuario) {
+                    alert('Usuário não encontrado');
+                    return;
+                }
+
+                // Preencher dados do usuário
+                document.getElementById('usuarioNome').textContent = usuario.nome;
+                document.getElementById('usuarioEmail').textContent = usuario.email;
+                document.getElementById('usuarioTelefone').textContent = usuario.telefone || '-';
+                document.getElementById('usuarioEndereco').textContent = usuario.endereco || '-';
+
+                // Empréstimos ativos
+                const empAtivos = emprestimos.filter(e => e.usuario_id === id && !e.devolvido);
+                let htmlEmp = '';
+                if (empAtivos.length === 0) {
+                    htmlEmp = '<p style="color: #666; font-size: 0.9em;">Nenhum empréstimo ativo</p>';
+                } else {
+                    htmlEmp = '<ul style="list-style: none; padding: 0;">';
+                    empAtivos.forEach(e => {
+                        const livro = livros.find(l => l.id === e.livro_id);
+                        htmlEmp += `
+                            <li style="padding: 8px 0; border-bottom: 1px solid #eee; color: #333;">
+                                <strong>${livro?.titulo || 'Livro não encontrado'}</strong>
+                                <br><small style="color: #666;">
+                                    📅 Emprestimado em: ${new Date(e.data_emprestimo).toLocaleDateString()}
+                                    <br>📅 Devolução esperada: ${new Date(e.data_devolucao).toLocaleDateString()}
+                                </small>
+                            </li>
+                        `;
+                    });
+                    htmlEmp += '</ul>';
+                }
+                document.getElementById('usuarioEmprestimos').innerHTML = htmlEmp;
+
+                // Reservas ativas
+                const resAtivas = reservas.filter(r => r.usuario_id === id && r.status === 'ativa');
+                let htmlRes = '';
+                if (resAtivas.length === 0) {
+                    htmlRes = '<p style="color: #666; font-size: 0.9em;">Nenhuma reserva ativa</p>';
+                } else {
+                    htmlRes = '<ul style="list-style: none; padding: 0;">';
+                    resAtivas.forEach(r => {
+                        const livro = livros.find(l => l.id === r.livro_id);
+                        htmlRes += `
+                            <li style="padding: 8px 0; border-bottom: 1px solid #eee; color: #333;">
+                                <strong>${livro?.titulo || 'Livro não encontrado'}</strong>
+                                <br><small style="color: #666;">
+                                    📅 Reservado em: ${new Date(r.data_reserva).toLocaleDateString()}
+                                    <br>🟦 Status: <span style="background: #cce5ff; color: #004085; padding: 2px 8px; border-radius: 10px;">${r.status}</span>
+                                </small>
+                            </li>
+                        `;
+                    });
+                    htmlRes += '</ul>';
+                }
+                document.getElementById('usuarioReservas').innerHTML = htmlRes;
+
+                // Mostrar modal
+                document.getElementById('modalUsuario').classList.add('show');
+            }).catch(err => {
+                console.error('Erro ao carregar detalhes:', err);
+                alert('Erro ao carregar detalhes do usuário');
+            });
+        }
+
+        function fecharModalUsuario() {
+            document.getElementById('modalUsuario').classList.remove('show');
         }
 
         function fazerLogout() {
             sessionStorage.clear();
-            window.location.href = '/index.html';
+            delayedNavigate('/index.html');
         }
 
         // Carregar dashboard ao iniciar
@@ -1032,11 +1522,35 @@
 
         // Fechar modal ao clicar fora
         window.onclick = function(event) {
-            const modal = document.getElementById('modalLivro');
-            if (event.target === modal) {
+            const modalLivroElem = document.getElementById('modalLivro');
+            const modalUsuarioElem = document.getElementById('modalUsuario');
+            
+            if (event.target === modalLivroElem) {
                 fecharModal();
             }
+            if (event.target === modalUsuarioElem) {
+                fecharModalUsuario();
+            }
         }
+    </script>
+    <script>
+        // Page overlay + delayed navigation (admin)
+        (function(){
+            const overlay = document.createElement('div');
+            overlay.id = 'pageOverlay';
+            document.addEventListener('DOMContentLoaded', ()=>{
+                document.body.appendChild(overlay);
+                requestAnimationFrame(()=>{
+                    overlay.classList.add('visible');
+                    setTimeout(()=> overlay.classList.remove('visible'), 20);
+                });
+            });
+
+            window.delayedNavigate = function(url){
+                overlay.classList.add('visible');
+                setTimeout(()=> window.location.href = url, 700);
+            };
+        })();
     </script>
 </body>
 </html>

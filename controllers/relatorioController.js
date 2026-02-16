@@ -50,7 +50,7 @@ export const relatorioEmprestimosPendentes = async (req, res) => {
   try {
     const connection = await createConnection();
     const [rows] = await connection.query(`
-      SELECT u.nome, u.email, e.data_emprestimo AS dataEmprestimo, e.data_devolucao AS dataDevolucao, l.titulo
+      SELECT u.nome, u.email, u.tipo, e.data_emprestimo AS dataEmprestimo, e.data_devolucao AS dataDevolucao, l.titulo
       FROM emprestimos e
       JOIN usuarios u ON e.usuario_id = u.id
       JOIN livros l ON e.livro_id = l.id
@@ -60,6 +60,7 @@ export const relatorioEmprestimosPendentes = async (req, res) => {
     const headers = [
       { displayName: 'Nome', key: 'nome' },
       { displayName: 'Email', key: 'email' },
+      { displayName: 'Tipo', key: 'tipo' },
       { displayName: 'Data Emprestimo', key: 'dataEmprestimo' },
       { displayName: 'Data Devolucao', key: 'dataDevolucao' },
       { displayName: 'Título', key: 'titulo' },
@@ -82,7 +83,7 @@ export const relatorioEmprestimosAtivos = async (req, res) => {
     const connection = await createConnection();
 
     const [rows] = await connection.query(`
-      SELECT u.nome, l.titulo, e.data_emprestimo, e.data_devolucao
+      SELECT u.nome, u.tipo, l.titulo, e.data_emprestimo, e.data_devolucao
       FROM emprestimos e
       JOIN usuarios u ON e.usuario_id = u.id
       JOIN livros l ON e.livro_id = l.id
@@ -91,6 +92,7 @@ export const relatorioEmprestimosAtivos = async (req, res) => {
 
     const headers = [
       { displayName: 'Nome do Usuário', key: 'nome' },
+      { displayName: 'Tipo', key: 'tipo' },
       { displayName: 'Título do Livro', key: 'titulo' },
       { displayName: 'Data de Empréstimo', key: 'data_emprestimo' },
       { displayName: 'Data de Devolução', key: 'data_devolucao' },

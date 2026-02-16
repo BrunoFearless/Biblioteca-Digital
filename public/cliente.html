@@ -230,32 +230,34 @@
             transition: all 0.3s;
         }
 
-        .btn-borrow {
-            background: #2ECC71;
+        .btn-success {
+            background: linear-gradient(90deg, #3E6B3E, #2E7D32);
             color: white;
         }
 
-        .btn-borrow:hover:not(:disabled) {
-            background: #27ae60;
+        .btn-success:hover:not(:disabled) {
+            transform: translateY(-4px);
         }
 
-        .btn-borrow:disabled {
+        .btn-success:disabled {
             background: #bdc3c7;
             cursor: not-allowed;
+            transform: none;
         }
 
-        .btn-reserve {
-            background: #3498db;
+        .btn-info {
+            background: linear-gradient(90deg, #2F5DA8, #1E57C6);
             color: white;
         }
 
-        .btn-reserve:hover:not(:disabled) {
-            background: #2980b9;
+        .btn-info:hover:not(:disabled) {
+            transform: translateY(-4px);
         }
 
-        .btn-reserve:disabled {
+        .btn-info:disabled {
             background: #bdc3c7;
             cursor: not-allowed;
+            transform: none;
         }
 
         .emprestimos-table {
@@ -282,6 +284,7 @@
         .emprestimos-table td {
             padding: 12px 15px;
             border-bottom: 1px solid #ddd;
+            color: #111;
         }
 
         .emprestimos-table tbody tr:hover {
@@ -293,6 +296,7 @@
             border-radius: 15px;
             font-size: 0.85em;
             font-weight: bold;
+            color: #111 !important;
         }
 
         .status-ativo {
@@ -395,6 +399,7 @@
             display: block;
         }
     </style>
+    <link rel="stylesheet" href="/css/theme.css">
 </head>
 <body>
     <div class="container">
@@ -408,8 +413,15 @@
 
         <div class="nav-tabs">
             <button class="nav-btn active" onclick="showSection('catalogo')">📖 Catálogo</button>
+            <button class="nav-btn" onclick="showSection('categorias')">🏷️ Categoria</button>
             <button class="nav-btn" onclick="showSection('meus-emprestimos')">📚 Meus Empréstimos</button>
             <button class="nav-btn" onclick="showSection('minhas-reservas')">⭐ Minhas Reservas</button>
+                <!-- Categorias -->
+                <div id="categorias" class="content-section">
+                    <h2 style="color: white; margin-bottom: 20px;">Categorias de Livros</h2>
+                    <div id="categoriasList" style="margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 10px;"></div>
+                    <div id="categoriasContent" class="loading">Selecione uma categoria para ver os livros.</div>
+                </div>
         </div>
 
         <!-- Catálogo -->
@@ -447,13 +459,25 @@
     </div>
 
     <script>
+        // Corrigir tipo de usuário salvo no sessionStorage
+        (function() {
+            let usuario = sessionStorage.getItem('usuario');
+            if (usuario) {
+                usuario = JSON.parse(usuario);
+                // Se não houver tipo salvo, tentar recuperar do localStorage (retrocompatibilidade)
+                if (!usuario.tipo) {
+                    usuario.tipo = 'aluno'; // padrão
+                    sessionStorage.setItem('usuario', JSON.stringify(usuario));
+                }
+            }
+        })();
         // Usuário atual
         let usuarioAtual = JSON.parse(sessionStorage.getItem('usuario'));
         let acaoAtual = null;
         let livroAtual = null;
 
         if (!usuarioAtual || sessionStorage.getItem('modo') !== 'cliente') {
-            window.location.href = '/index.html';
+            delayedNavigate('/index.html');
         }
 
         document.getElementById('userInfo').textContent = `Olá, ${usuarioAtual.nome}!`;
@@ -496,26 +520,94 @@
         }
 
         function showSection(section) {
-            document.querySelectorAll('.content-section').forEach(el => {
-                el.classList.remove('active');
-            });
-            document.querySelectorAll('.nav-btn').forEach(el => {
-                el.classList.remove('active');
-            });
-
-            document.getElementById(section).classList.add('active');
-            event.target.classList.add('active');
-
-            if (section === 'catalogo') {
-                Promise.all([carregarEmprestimosDoServidor(), carregarReservasDoServidor()])
-                    .then(() => loadCatalogo())
-                    .catch(err => { console.error('Erro ao carregar dados do catálogo:', err); loadCatalogo(); });
+            const current = document.querySelector('.content-section.active');
+            const activate = () => {
+                document.querySelectorAll('.content-section').forEach(el => el.classList.remove('active'));
+                document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+                const target = document.getElementById(section);
+                if (target) {
+                    target.classList.add('active', 'section-enter');
+                    setTimeout(() => target.classList.remove('section-enter'), 600);
+                }
+                // mark nav button active (best-effort)
+                document.querySelectorAll('.nav-btn').forEach(btn => {
+                    const onclick = btn.getAttribute('onclick') || '';
+                    if (onclick.includes(section)) btn.classList.add('active');
+                });
+                if (section === 'catalogo') loadCatalogo();
+                else if (section === 'meus-emprestimos') carregarEmprestimosDoServidor().then(() => loadMeusEmprestimos());
+                else if (section === 'minhas-reservas') carregarReservasDoServidor().then(() => loadMinhasReservas());
+                else if (section === 'categorias') loadCategorias();
+            };
+        async function loadCategorias() {
+            try {
+                const livros = await fetch('/api/livros').then(r => r.json());
+                livrosLocal = livros;
+                // Extrair categorias únicas
+                const categorias = [...new Set(livros.map(l => l.genero).filter(Boolean))];
+                let catHtml = '';
+                categorias.forEach(cat => {
+                    const catEsc = encodeURIComponent(cat);
+                    catHtml += `<button class="nav-btn" style="background: #C08A4A; color: white;" onclick="mostrarLivrosPorCategoria(decodeURIComponent('${catEsc}'))">${cat}</button>`;
+                });
+                document.getElementById('categoriasList').innerHTML = catHtml;
+                document.getElementById('categoriasContent').innerHTML = '<div class="empty-state">Selecione uma categoria para ver os livros.</div>';
+            } catch (error) {
+                document.getElementById('categoriasContent').innerHTML = '<div class="empty-state">Erro ao carregar categorias</div>';
             }
-            else if (section === 'meus-emprestimos') {
-                carregarEmprestimosDoServidor().then(() => loadMeusEmprestimos());
+        }
+
+        window.mostrarLivrosPorCategoria = function(categoria) {
+            // Normalizar categoria e genero para evitar problemas de maiúsculas/minúsculas e espaços
+            const normalizar = str => (str || '').trim().toLowerCase();
+            const livros = livrosLocal.filter(l => normalizar(l.genero) === normalizar(categoria));
+            let html = '<div class="books-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">';
+            if (livros.length === 0) {
+                html = '<div class="empty-state">Nenhum livro nesta categoria</div>';
+            } else {
+                livros.forEach(livro => {
+                    let capaUrl = '';
+                    if (livro.capa_url) {
+                        let raw = String(livro.capa_url).replace(/\\/g, '/');
+                        raw = raw.replace(/^\/+/, '');
+                        capaUrl = raw.startsWith('http') ? raw : ('/' + raw);
+                    }
+                    html += `
+                        <div class="book-card" style="display: flex; flex-direction: column; height: 100%; min-width: 220px;">
+                            <div class="book-cover" style="${capaUrl ? `background-image: url('${capaUrl}'); background-size: cover; background-position: center;` : `background: linear-gradient(135deg, ${getGradientColor(livro.titulo)} 0%, ${getGradientColor(livro.autor)} 100%);`} width: 100%; height: 180px; border-radius: 10px 10px 0 0;">
+                                ${!capaUrl ? '📚' : ''}
+                            </div>
+                            <div class="book-details" style="flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
+                                <div>
+                                    <div class="book-title">${livro.titulo}</div>
+                                    <div class="book-author">${livro.autor}</div>
+                                    <div class="book-meta">
+                                        <span>${livro.genero}</span>
+                                        <span>${livro.ano_publicacao}</span>
+                                    </div>
+                                </div>
+                                <div class="stock-info">
+                                    ${livro.estoque > 0 
+                                        ? `⏱️ ${livro.estoque} disponível` 
+                                        : '❌ Indisponível'}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
             }
-            else if (section === 'minhas-reservas') {
-                carregarReservasDoServidor().then(() => loadMinhasReservas());
+            html += '</div>';
+            document.getElementById('categoriasContent').innerHTML = html;
+        }
+
+            if (current && current.id !== section) {
+                current.classList.add('section-exit');
+                setTimeout(() => {
+                    current.classList.remove('active', 'section-exit');
+                    activate();
+                }, 450);
+            } else {
+                activate();
             }
         }
 
@@ -552,11 +644,17 @@
                     console.log(`Processando livro ID=${livro.id} - ${livro.titulo}`);
                     const jaPegueiEmprestado = emprestimosLocal.some(e => e.livro_id === livro.id && !e.devolvido);
                     const jaReservei = reservasLocal.some(r => r.livro_id === livro.id && r.status === 'ativa');
+                    const capaUrl = (function(){
+                        if (!livro.capa_url) return null;
+                        let raw = String(livro.capa_url).replace(/\\/g, '/');
+                        raw = raw.replace(/^\/+/, '');
+                        return raw.startsWith('http') ? raw : ('/' + raw);
+                    })();
 
                     html += `
                         <div class="book-card">
-                            <div class="book-cover" style="${livro.capa_url ? `background-image: url('${livro.capa_url}'); background-size: cover; background-position: center;` : `background: linear-gradient(135deg, ${getGradientColor(livro.titulo)} 0%, ${getGradientColor(livro.autor)} 100%);`}">
-                                ${!livro.capa_url ? '📚' : ''}
+                            <div class="book-cover" style="${capaUrl ? `background-image: url('${capaUrl}'); background-size: cover; background-position: center;` : `background: linear-gradient(135deg, ${getGradientColor(livro.titulo)} 0%, ${getGradientColor(livro.autor)} 100%);`}">
+                                ${!capaUrl ? '📚' : ''}
                             </div>
                             <div class="book-details">
                                 <div class="book-title">${livro.titulo}</div>
@@ -571,16 +669,12 @@
                                         : '❌ Indisponível'}
                                 </div>
                                 <div class="action-buttons">
-                                        <button class="btn-action btn-borrow" 
-                                            data-livro-id="${livro.id}"
-                                            data-titulo="${livro.titulo.replace(/'/g, "\\'") }"
+                                    <button class="btn-action btn-borrow btn-success" 
                                             onclick="console.log('Clicado em Pegar - Livro:', ${livro.id}); abrirModal('borrow', ${livro.id}, '${livro.titulo.replace(/'/g, "\\'")}')"
                                             ${jaPegueiEmprestado || livro.estoque === 0 ? 'disabled' : ''}>
                                         ${jaPegueiEmprestado ? '✓ Pegado' : 'Pegar'}
                                     </button>
-                                        <button class="btn-action btn-reserve" 
-                                            data-livro-id="${livro.id}"
-                                            data-titulo="${livro.titulo.replace(/'/g, "\\'") }"
+                                    <button class="btn-action btn-reserve btn-info" 
                                             onclick="console.log('Clicado em Reservar - Livro:', ${livro.id}); abrirModal('reserve', ${livro.id}, '${livro.titulo.replace(/'/g, "\\'")}')"
                                             ${jaReservei ? 'disabled' : ''}>
                                         ${jaReservei ? '✓ Reservado' : 'Reservar'}
@@ -597,104 +691,92 @@
         }
 
         async function loadMeusEmprestimos() {
-            try {
-                const emprestimos = await fetch('/api/emprestimos').then(r => r.json());
-                const meus = emprestimos.filter(e => e.usuario_id === usuarioAtual.id);
-
-                let html = '';
-                if (meus.length === 0) {
-                    html = '<div class="empty-state">Você não possui empréstimos no momento</div>';
-                } else {
-                    html = `
-                        <table class="emprestimos-table">
-                            <thead>
+    try {
+        const emprestimos = await fetch('/api/emprestimos').then(r => r.json());
+        const meus = emprestimos.filter(e => e.usuario_id === usuarioAtual.id);
+        let html = '';
+        if (meus.length === 0) {
+            html = '<div class="empty-state">Você não possui empréstimos no momento</div>';
+        } else {
+            html = `
+                <table class="emprestimos-table">
+                    <thead>
+                        <tr>
+                            <th>Livro</th>
+                            <th>Data Empréstimo</th>
+                            <th>Data Devolução</th>
+                            <th>Prazo Restante</th>
+                            <th>Status</th>
+                            <th>Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${meus.map(e => {
+                            const hoje = new Date();
+                            const dataDev = new Date(e.data_devolucao);
+                            const diffMs = dataDev - hoje;
+                            const diffDias = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+                            let prazoStr = '';
+                            if (diffDias > 0) {
+                                prazoStr = `${diffDias} dia(s)`;
+                            } else if (diffDias === 0) {
+                                prazoStr = 'Último dia!';
+                            } else {
+                                prazoStr = `<span style=\"color:#e74c3c;font-weight:bold;\">Expirado (${Math.abs(diffDias)} dia(s))</span>`;
+                            }
+                            return `
                                 <tr>
-                                    <th>Livro</th>
-                                    <th>Data Empréstimo</th>
-                                    <th>Data Devolução</th>
-                                    <th>Status</th>
-                                    <th>Ação</th>
+                                    <td>${e.livro_id}</td>
+                                    <td>${new Date(e.data_emprestimo).toLocaleDateString()}</td>
+                                    <td>${new Date(e.data_devolucao).toLocaleDateString()}</td>
+                                    <td>${prazoStr}</td>
+                                    <td>
+                                        <span class="status-badge ${e.devolvido ? 'status-devolvido' : 'status-ativo'}">
+                                            ${e.devolvido ? 'Devolvido' : 'Ativo'}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        ${!e.devolvido ? `<button class="btn-action btn-danger" onclick="abrirModal('return', ${e.id}, '')">Devolver</button>` : '-'}
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                ${meus.map(e => `
-                                    <tr>
-                                        <td>${e.livro_id}</td>
-                                        <td>${new Date(e.data_emprestimo).toLocaleDateString()}</td>
-                                        <td>${new Date(e.data_devolucao).toLocaleDateString()}</td>
-                                        <td>
-                                            <span class="status-badge ${e.devolvido ? 'status-devolvido' : 'status-ativo'}">
-                                                ${e.devolvido ? '✅ Devolvido' : '⏳ Ativo'}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            ${!e.devolvido ? `<button class="btn-action btn-return" data-emprestimo-id="${e.id}" onclick="abrirModal('return', ${e.id}, '')">Devolver</button>` : '-'}
-                                        </td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    `;
-                }
-
-                document.getElementById('emprestimosContent').innerHTML = html;
-            } catch (error) {
-                document.getElementById('emprestimosContent').innerHTML = '<div class="empty-state">Erro ao carregar empréstimos</div>';
-            }
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
         }
-
-        async function loadMinhasReservas() {
-            try {
-                const reservas = JSON.parse(localStorage.getItem(`reservas_${usuarioAtual.id}`) || '[]');
-
-                let html = '';
-                if (reservas.length === 0) {
-                    html = '<div class="empty-state">Você não possui reservas no momento</div>';
-                } else {
-                    html = `
-                        <table class="emprestimos-table">
-                            <thead>
-                                <tr>
-                                    <th>Livro</th>
-                                    <th>Data Reserva</th>
-                                    <th>Status</th>
-                                    <th>Ação</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${reservas.filter(r => r.status !== 'cancelada').map(r => `
-                                    <tr>
-                                        <td>${r.livro_id}</td>
-                                        <td>${new Date(r.data_reserva).toLocaleDateString()}</td>
-                                        <td>
-                                            <span class="status-badge" style="background: #cce5ff; color: #004085;">
-                                                ⭐ ${r.status === 'ativa' ? 'Ativa' : 'Efetivada'}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            ${r.status === 'ativa' ? `<button class="btn-action btn-reserve" onclick="cancelarReserva(${r.id})">Cancelar</button>` : '-'}
-                                        </td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    `;
-                }
-
-                document.getElementById('reservasContent').innerHTML = html;
-            } catch (error) {
-                document.getElementById('reservasContent').innerHTML = '<div class="empty-state">Erro ao carregar reservas</div>';
-            }
-        }
+        document.getElementById('emprestimosContent').innerHTML = html;
+    } catch (error) {
+        document.getElementById('emprestimosContent').innerHTML = '<div class="empty-state">Erro ao carregar empréstimos</div>';
+    }
+}
 
         function abrirModal(acao, livroId, titulo) {
-            console.log('abrirModal chamado', acao, livroId, titulo);
             acaoAtual = acao;
             livroAtual = livroId;
 
+            // Definir limites conforme tipo de usuário
+            const tipo = (usuarioAtual.tipo || '').toLowerCase();
+            let prazo = 7, maxLivros = 3, label = 'aluno';
+            if (tipo === 'professor') {
+                prazo = 15;
+                maxLivros = 6;
+                label = 'professor';
+            }
+            // Contar quantos empréstimos ativos o usuário tem
+            const emprestimosAtivos = emprestimosLocal.filter(e => !e.devolvido).length;
+
             if (acao === 'borrow') {
                 document.getElementById('modalTitle').textContent = 'Pegar Livro Emprestado';
-                document.getElementById('modalMessage').textContent = `Deseja pegar "${titulo}" emprestado? Prazo: 14 dias`;
+                document.getElementById('modalMessage').textContent = `Deseja pegar "${titulo}" emprestado?\n\nTipo: ${label.charAt(0).toUpperCase() + label.slice(1)}\nPrazo: ${prazo} dias\nLimite: ${maxLivros} livros simultâneos.\nVocê já possui ${emprestimosAtivos} empréstimo(s) ativo(s).`;
+                // Bloquear se exceder limite
+                if (emprestimosAtivos >= maxLivros) {
+                    setTimeout(()=>{
+                        alert(`Limite de empréstimos atingido para ${label}.\nVocê só pode pegar até ${maxLivros} livros ao mesmo tempo.`);
+                        fecharModal();
+                    }, 100);
+                    return;
+                }
             } else if (acao === 'reserve') {
                 document.getElementById('modalTitle').textContent = 'Reservar Livro';
                 document.getElementById('modalMessage').textContent = `Deseja reservar "${titulo}"?`;
@@ -710,7 +792,7 @@
             document.getElementById('modal').classList.remove('active');
         }
 
-        async function confirmarAcao() {
+        function confirmarAcao() {
             console.log('=== CONFIRMAR AÇÃO ===');
             console.log('Ação:', acaoAtual);
             console.log('Livro ID:', livroAtual);
@@ -730,27 +812,24 @@
                 return;
             }
             
-            // Ensure the livro exists in the current catalog before any action
-            if (acaoAtual === 'borrow' || acaoAtual === 'reserve') {
-                if (!livrosLocal.some(l => l.id === livroAtual)) {
-                    console.log('Livro não encontrado localmente, recarregando catálogo...');
-                    try {
-                        await loadCatalogo();
-                    } catch (err) {
-                        console.error('Falha ao recarregar catálogo:', err);
-                    }
-
-                    if (!livrosLocal.some(l => l.id === livroAtual)) {
-                        alert('Livro não encontrado no catálogo. Atualize a página e tente novamente.');
-                        fecharModal();
-                        return;
-                    }
-                }
-            }
-
             if (acaoAtual === 'borrow') {
+                // Definir limites conforme tipo de usuário
+                const tipo = (usuarioAtual.tipo || '').toLowerCase();
+                let prazo = 7, maxLivros = 3, label = 'aluno';
+                if (tipo === 'professor') {
+                    prazo = 15;
+                    maxLivros = 6;
+                    label = 'professor';
+                }
+                // Contar quantos empréstimos ativos o usuário tem
+                const emprestimosAtivos = emprestimosLocal.filter(e => !e.devolvido).length;
+                if (emprestimosAtivos >= maxLivros) {
+                    alert(`Limite de empréstimos atingido para ${label}.\nVocê só pode pegar até ${maxLivros} livros ao mesmo tempo.`);
+                    fecharModal();
+                    return;
+                }
                 console.log('Iniciando empréstimo de livro...');
-                const dataDevolucao = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                const dataDevolucao = new Date(Date.now() + prazo * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
                 const dados = {
                     usuario_id: usuarioAtual.id,
                     livro_id: livroAtual,
@@ -866,54 +945,54 @@
             }
         }
 
-        // Event delegation: captura cliques em botões de reserva/pegar caso onclick inline falhe
-        document.addEventListener('click', function(e) {
-            try {
-                const target = e.target;
-                if (!target || !target.classList) return;
 
-                // Delegation para Reservar
-                if (target.classList.contains('btn-reserve')) {
-                    console.log('Delegation: botão Reservar clicado, tentando abrir modal...');
-                    const dataId = target.dataset.livroId;
-                    const dataTitulo = target.dataset.titulo || '';
-                    const id = dataId ? Number(dataId) : (typeof livroAtual === 'number' ? livroAtual : null);
-                    abrirModal('reserve', id, dataTitulo);
-                }
+        function cancelarReserva(id) {
+            reservasLocal = reservasLocal.map(r => 
+                r.id === id ? {...r, status: 'cancelada'} : r
+            );
+            localStorage.setItem(`reservas_${usuarioAtual.id}`, JSON.stringify(reservasLocal));
+            alert('❌ Reserva cancelada');
+            loadMinhasReservas();
+        }
 
-                // Delegation para Pegar (fallback)
-                if (target.classList.contains('btn-borrow')) {
-                    console.log('Delegation: botão Pegar clicado, tentando abrir modal...');
-                    const dataId = target.dataset.livroId;
-                    const dataTitulo = target.dataset.titulo || '';
-                    const id = dataId ? Number(dataId) : (typeof livroAtual === 'number' ? livroAtual : null);
-                    abrirModal('borrow', id, dataTitulo);
-                }
-            } catch (err) {
-                console.error('Erro no event delegation:', err);
+        // Função para renderizar reservas do usuário
+        function loadMinhasReservas() {
+            let html = '';
+            if (!reservasLocal || reservasLocal.length === 0) {
+                html = '<div class="empty-state">Você não possui reservas no momento</div>';
+            } else {
+                html = `
+                    <table class="emprestimos-table">
+                        <thead>
+                            <tr>
+                                <th>Livro</th>
+                                <th>Data Reserva</th>
+                                <th>Status</th>
+                                <th>Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${reservasLocal.map(r => {
+                                return `
+                                    <tr>
+                                        <td>${r.livro_id}</td>
+                                        <td>${r.data_reserva ? new Date(r.data_reserva).toLocaleDateString() : '-'}</td>
+                                        <td>
+                                            <span class="status-badge ${r.status === 'ativa' ? 'status-ativo' : 'status-devolvido'}">
+                                                ${r.status === 'ativa' ? 'Ativa' : (r.status === 'cancelada' ? 'Cancelada' : r.status)}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            ${r.status === 'ativa' ? `<button class="btn-action btn-danger" onclick="cancelarReserva(${r.id})">Cancelar</button>` : '-'}
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
             }
-        });
-
-        async function cancelarReserva(id) {
-            try {
-                const res = await fetch(`/api/reservas/${id}/cancelar`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                const data = await res.json();
-                if (res.ok) {
-                    // Recarregar reservas do servidor e atualizar UI
-                    await carregarReservasDoServidor();
-                    loadMinhasReservas();
-                    alert('✅ Reserva cancelada com sucesso');
-                } else {
-                    console.error('Erro ao cancelar reserva:', data);
-                    throw new Error(data.error || data.message || 'Erro ao cancelar reserva');
-                }
-            } catch (e) {
-                console.error('Falha ao cancelar reserva:', e);
-                alert('❌ Falha ao cancelar reserva. Tente novamente.');
-            }
+            document.getElementById('reservasContent').innerHTML = html;
         }
 
         function getGradientColor(text) {
@@ -927,17 +1006,31 @@
 
         function fazerLogout() {
             sessionStorage.clear();
-            window.location.href = '/index.html';
+            delayedNavigate('/index.html');
         }
 
-        // Carregar dados ao iniciar (aguardar sincronização antes de renderizar)
-        (async function init() {
-            try {
-                await Promise.all([carregarEmprestimosDoServidor(), carregarReservasDoServidor()]);
-            } catch (e) {
-                console.error('Erro ao carregar dados iniciais:', e);
-            }
-            loadCatalogo();
+        // Carregar dados ao iniciar
+        carregarEmprestimosDoServidor();
+        carregarReservasDoServidor();
+        loadCatalogo();
+    </script>
+    <script>
+        // Page overlay + delayed navigation (cliente)
+        (function(){
+            const overlay = document.createElement('div');
+            overlay.id = 'pageOverlay';
+            document.addEventListener('DOMContentLoaded', ()=>{
+                document.body.appendChild(overlay);
+                requestAnimationFrame(()=>{
+                    overlay.classList.add('visible');
+                    setTimeout(()=> overlay.classList.remove('visible'), 20);
+                });
+            });
+
+            window.delayedNavigate = function(url){
+                overlay.classList.add('visible');
+                setTimeout(()=> window.location.href = url, 700);
+            };
         })();
     </script>
 </body>

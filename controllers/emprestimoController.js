@@ -18,8 +18,10 @@ export const createEmprestimo = async (req, res) => {
       return res.status(400).json({ error: "Livro sem estoque disponível" });
     }
 
+
+    // Buscar tipo e quantidade de empréstimos ativos do usuário
     const [usuario] = await connection.execute(
-      "SELECT emprestimo_ativo, quantidade_emprestimos FROM usuarios WHERE id = ?",
+      "SELECT tipo, id FROM usuarios WHERE id = ?",
       [usuario_id]
     );
 
@@ -27,8 +29,16 @@ export const createEmprestimo = async (req, res) => {
       return res.status(404).json({ error: "Usuário não encontrado" });
     }
 
-    if (usuario[0].emprestimo_ativo === 1) {
-      return res.status(400).json({ error: "Usuário já possui um empréstimo ativo" });
+    const tipoUsuario = (usuario[0].tipo || '').toLowerCase();
+    // Buscar quantos empréstimos ativos esse usuário tem
+    const [emprestimosAtivos] = await connection.execute(
+      "SELECT COUNT(*) as total FROM emprestimos WHERE usuario_id = ? AND devolvido = 0",
+      [usuario_id]
+    );
+    const totalAtivos = emprestimosAtivos[0].total || 0;
+    const limite = tipoUsuario === 'professor' ? 6 : 3;
+    if (totalAtivos >= limite) {
+      return res.status(400).json({ error: `Limite de empréstimos atingido para ${tipoUsuario}.` });
     }
 
     const [result] = await connection.execute(
@@ -45,10 +55,10 @@ export const createEmprestimo = async (req, res) => {
       [livro_id]
     );
 
+    // Não atualizar mais emprestimo_ativo (depreciação)
     await connection.execute(
       `UPDATE usuarios 
-       SET emprestimo_ativo = 1, 
-           quantidade_emprestimos = quantidade_emprestimos + 1 
+       SET quantidade_emprestimos = quantidade_emprestimos + 1 
        WHERE id = ?`,
       [usuario_id]
     );

@@ -202,6 +202,23 @@ app.get("/api/livros", async (req, res) => {
   }
 });
 
+// API - Buscar Livro Específico
+app.get("/api/livros/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const connection = await createConnection();
+    const [rows] = await connection.execute("SELECT * FROM livros WHERE id = ?", [id]);
+    
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Livro não encontrado" });
+    }
+    
+    return res.status(200).json(rows[0]);
+  } catch (error) {
+    return res.status(500).json({ error: "Erro ao buscar o livro", details: error.message });
+  }
+});
+
 // API - Usuários (retorna JSON)
 app.get("/api/usuarios", async (req, res) => {
   try {
@@ -234,6 +251,23 @@ app.post("/api/emprestimos", async (req, res) => {
     const [livro] = await connection.execute("SELECT estoque FROM livros WHERE id = ?", [livro_id]);
     if (livro.length === 0 || livro[0].estoque <= 0) {
       return res.status(400).json({ error: "Livro indisponível" });
+    }
+
+    // Buscar tipo do usuário
+    const [usuario] = await connection.execute("SELECT tipo FROM usuarios WHERE id = ?", [usuario_id]);
+    if (usuario.length === 0) {
+      return res.status(404).json({ error: "Usuário não encontrado" });
+    }
+    const tipoUsuario = (usuario[0].tipo || '').toLowerCase();
+    // Buscar quantos empréstimos ativos esse usuário tem
+    const [emprestimosAtivos] = await connection.execute(
+      "SELECT COUNT(*) as total FROM emprestimos WHERE usuario_id = ? AND devolvido = 0",
+      [usuario_id]
+    );
+    const totalAtivos = emprestimosAtivos[0].total || 0;
+    const limite = tipoUsuario === 'professor' ? 6 : 3;
+    if (totalAtivos >= limite) {
+      return res.status(400).json({ error: `Limite de empréstimos atingido para ${tipoUsuario}.` });
     }
 
     // Criar empréstimo

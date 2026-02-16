@@ -8,18 +8,19 @@ export const createUser = async (req, res) => {
       return res.status(400).json({ errors: parsedData.error.errors });
     }
 
-    const { nome, endereco, email, telefone } = req.body;
+    const { nome, endereco, email, telefone, tipo } = req.body;
+    const tipoFinal = (tipo === 'professor') ? 'professor' : 'aluno';
 
     const connection = await createConnection();
 
     const [result] = await connection.execute(
-      "INSERT INTO usuarios (nome, endereco, email, telefone) VALUES (?, ?, ?, ?)",
-      [nome, endereco, email, telefone]
+      "INSERT INTO usuarios (nome, endereco, email, telefone, tipo) VALUES (?, ?, ?, ?, ?)",
+      [nome, endereco, email, telefone, tipoFinal]
     );
 
     return res
       .status(201)
-      .json({ message: "Usuário criado com sucesso", id: result.insertId });
+      .json({ message: "Usuário criado com sucesso", id: result.insertId, tipo: tipoFinal });
   } catch (error) {
     return res
       .status(500)
@@ -31,6 +32,8 @@ export const getUsers = async (req, res) => {
   try {
     const connection = await createConnection();
     const [rows] = await connection.execute("SELECT * FROM usuarios");
+    // Garante que todos tenham tipo
+    rows.forEach(u => { if (!u.tipo) u.tipo = 'aluno'; });
     return res.status(200).json(rows);
   } catch (error) {
     return res.status(500).json({ error: "Erro ao buscar os usuários" });

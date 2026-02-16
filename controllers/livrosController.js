@@ -8,13 +8,13 @@ export const createLivro = async (req, res) => {
       return res.status(400).json({ errors: parsedData.error.errors });
     }
 
-    const { titulo, autor, genero, ano_publicacao, estoque } = req.body;
+    const { titulo, autor, genero, ano_publicacao, estoque, capa_url, descricao } = req.body;
 
     const connection = await createConnection();
 
     const [result] = await connection.execute(
-      "INSERT INTO livros (titulo, autor, genero, ano_publicacao, estoque) VALUES (?, ?, ?, ?, ?)",
-      [titulo, autor, genero, ano_publicacao, estoque]
+      "INSERT INTO livros (titulo, autor, genero, ano_publicacao, estoque, capa_url, descricao) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [titulo, autor, genero, ano_publicacao, estoque, capa_url || null, descricao || null]
     );
 
     return res
@@ -97,7 +97,7 @@ export const getLivroByGenero = async (req, res) => {
 export const updateLivro = async (req, res) => {
   try {
     const { id } = req.params;
-    const { titulo, autor, genero, ano_publicacao, estoque } = req.body;
+    const { titulo, autor, genero, ano_publicacao, estoque, capa_url, descricao } = req.body;
 
     const parsedData = livroSchema.safeParse(req.body);
     if (!parsedData.success) {
@@ -106,8 +106,8 @@ export const updateLivro = async (req, res) => {
 
     const connection = await createConnection();
     const [result] = await connection.execute(
-      "UPDATE livros SET titulo = ?, autor = ?, genero = ?, ano_publicacao = ?, estoque = ? WHERE id = ?",
-      [titulo, autor, genero, ano_publicacao, estoque,id]
+      "UPDATE livros SET titulo = ?, autor = ?, genero = ?, ano_publicacao = ?, estoque = ?, capa_url = ?, descricao = ? WHERE id = ?",
+      [titulo, autor, genero, ano_publicacao, estoque, capa_url || null, descricao || null, id]
     );
 
     if (result.affectedRows === 0) {

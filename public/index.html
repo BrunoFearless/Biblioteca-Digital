@@ -215,7 +215,51 @@
         .tab-content.active {
             display: block;
         }
+
+        /* Estilo para o select de tipo de usuário */
+        #tipoUsuarioGroup {
+            margin-bottom: 16px;
+        }
+        #tipoUsuario {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: 2px solid #667eea;
+            font-size: 1em;
+            background: #f8f8ff;
+            color: #333;
+            margin-top: 4px;
+            transition: border 0.2s;
+        }
+        #tipoUsuario:focus {
+            border: 2px solid #764ba2;
+            outline: none;
+        }
+
+        /* Botão de login destacado */
+        .btn-submit {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            font-weight: bold;
+            border: none;
+            border-radius: 5px;
+            padding: 12px 28px;
+            font-size: 1.1em;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(102,126,234,0.12);
+            transition: background 0.2s, transform 0.2s;
+        }
+        .btn-submit:hover:not(:disabled) {
+            background: linear-gradient(90deg, #764ba2 0%, #667eea 100%);
+            transform: translateY(-2px) scale(1.04);
+        }
+        .btn-submit:disabled {
+            background: #ccc;
+            color: #888;
+            cursor: not-allowed;
+        }
     </style>
+    <link rel="stylesheet" href="/css/theme.css">
 </head>
 <body>
     <div class="container">
@@ -243,8 +287,8 @@
 
         <!-- Formulário de Login -->
         <div id="loginForm" class="login-form">
+
             <h3 id="loginTitle">Login Cliente</h3>
-            
             <div class="error" id="errorMessage"></div>
             <div class="success" id="successMessage"></div>
 
@@ -257,6 +301,13 @@
                 <div class="form-group">
                     <label for="senha">Senha</label>
                     <input type="password" id="senha" placeholder="Digite sua senha">
+                </div>
+                <div class="form-group" id="tipoUsuarioGroup" style="display:none;">
+                    <label for="tipoUsuario">Tipo de usuário</label>
+                    <select id="tipoUsuario" tabindex="0" autocomplete="off" style="background:#f8f8ff; cursor:pointer; pointer-events:auto;">
+                        <option value="aluno">Aluno</option>
+                        <option value="professor">Professor</option>
+                    </select>
                 </div>
                 <div class="toggle-link" onclick="switchTab('registroTab')">Não tem conta? Registre-se aqui</div>
                 <div class="form-buttons">
@@ -301,30 +352,71 @@
 
         function selectMode(modo) {
             modoAtual = modo;
-            document.getElementById('modeSelection').style.display = 'none';
-            document.getElementById('loginForm').classList.add('active');
-            
+            const modeEl = document.getElementById('modeSelection');
+            const loginEl = document.getElementById('loginForm');
+            modeEl.classList.add('section-exit');
+            setTimeout(() => {
+                modeEl.style.display = 'none';
+                modeEl.classList.remove('section-exit');
+                loginEl.classList.add('active', 'section-enter');
+                setTimeout(() => loginEl.classList.remove('section-enter'), 380);
+            }, 220);
+
             if (modo === 'admin') {
                 document.getElementById('loginTitle').textContent = 'Login Administrator';
                 document.getElementById('registroTab').style.display = 'none';
                 document.getElementById('loginTab').style.display = 'block';
+                document.getElementById('tipoUsuarioGroup').style.display = 'none';
             } else {
                 document.getElementById('loginTitle').textContent = 'Login Cliente';
+                document.getElementById('tipoUsuarioGroup').style.display = 'block';
+                const select = document.getElementById('tipoUsuario');
+                // Nunca trava o select entre sessões
+                select.disabled = false;
+                select.title = '';
+                select.removeAttribute('readonly');
+                select.removeAttribute('aria-disabled');
+                select.style.pointerEvents = 'auto';
+                select.style.opacity = '1';
+                select.style.background = '#f8f8ff';
+                select.style.cursor = 'pointer';
+                if (!select.value || (select.value !== 'aluno' && select.value !== 'professor')) {
+                    select.value = 'aluno';
+                }
             }
         }
 
         function voltarModo() {
-            document.getElementById('modeSelection').style.display = 'grid';
-            document.getElementById('loginForm').classList.remove('active');
+            // Ao voltar para a escolha de modo, libera o select de tipo de usuário
+            const select = document.getElementById('tipoUsuario');
+            if (select) {
+                select.disabled = false;
+                select.title = '';
+            }
+            const modeEl = document.getElementById('modeSelection');
+            const loginEl = document.getElementById('loginForm');
+            loginEl.classList.add('section-exit');
+            setTimeout(() => {
+                loginEl.classList.remove('active', 'section-exit');
+                modeEl.style.display = 'grid';
+                modeEl.classList.add('section-enter');
+                setTimeout(() => modeEl.classList.remove('section-enter'), 380);
+            }, 220);
             document.getElementById('loginTab').classList.add('active');
             document.getElementById('registroTab').classList.remove('active');
             modoAtual = null;
         }
 
         function switchTab(tabName) {
-            document.getElementById('loginTab').classList.remove('active');
-            document.getElementById('registroTab').classList.remove('active');
-            document.getElementById(tabName).classList.add('active');
+            const other = tabName === 'loginTab' ? 'registroTab' : 'loginTab';
+            const target = document.getElementById(tabName);
+            const prev = document.getElementById(other);
+            prev.classList.add('section-exit');
+            setTimeout(() => {
+                prev.classList.remove('active', 'section-exit');
+                target.classList.add('active', 'section-enter');
+                setTimeout(() => target.classList.remove('section-enter'), 360);
+            }, 180);
         }
 
         function mostrarErro(mensagem) {
@@ -348,6 +440,7 @@
         function fazerLogin() {
             const email = document.getElementById('email').value;
             const senha = document.getElementById('senha').value;
+            const tipoUsuario = document.getElementById('tipoUsuario').value;
 
             if (!email || !senha) {
                 mostrarErro('Preencha todos os campos');
@@ -359,34 +452,84 @@
                 if (email === 'admin@biblioteca.com' && senha === 'admin123') {
                     sessionStorage.setItem('modo', 'admin');
                     sessionStorage.setItem('usuario', JSON.stringify({ email, nome: 'Administrador' }));
-                    window.location.href = '/admin.html';
+                    delayedNavigate('/admin.html');
                 } else {
                     mostrarErro('Email ou senha incorretos (use: admin@biblioteca.com / admin123)');
                 }
             } else {
-                // Cliente: fazer login ou criar se não existir
-                loginCliente(email, senha);
+                // Cliente: login de professor só com email/senha fixa
+                if (tipoUsuario === 'professor') {
+                    if (email === 'professor@biblioteca.com' && senha === 'professor123') {
+                        // Buscar/criar professor real no banco
+                        fetch('/api/usuarios')
+                          .then(r => r.json())
+                          .then(usuariosDoBanco => {
+                              let usuarioBanco = usuariosDoBanco.find(u => u.email === email && u.tipo === 'professor');
+                              const salvarESair = (usuarioFinal) => {
+                                  sessionStorage.setItem('modo', 'cliente');
+                                  sessionStorage.setItem('usuario', JSON.stringify(usuarioFinal));
+                                  document.getElementById('tipoUsuario').disabled = true;
+                                  document.getElementById('tipoUsuario').title = 'Você está logado como Professor.';
+                                  delayedNavigate('/cliente.html');
+                              };
+                              if (!usuarioBanco) {
+                                  // Criar professor se não existir
+                                  fetch('/usuarios', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({
+                                          nome: 'Professor',
+                                          email: email,
+                                          telefone: '11999999999',
+                                          endereco: 'Instituição',
+                                          tipo: 'professor'
+                                      })
+                                  })
+                                  .then(r => r.json())
+                                  .then(novo => {
+                                      // Buscar pelo email para garantir id correto
+                                      fetch('/api/usuarios')
+                                        .then(r2 => r2.json())
+                                        .then(usuariosAtualizados => {
+                                            const usuarioFinal = usuariosAtualizados.find(u => u.email === email && u.tipo === 'professor');
+                                            if (usuarioFinal) {
+                                                salvarESair(usuarioFinal);
+                                            } else {
+                                                mostrarErro('Erro ao criar usuário professor.');
+                                            }
+                                        });
+                                  });
+                              } else {
+                                  salvarESair(usuarioBanco);
+                              }
+                          });
+                    } else {
+                        mostrarErro('Para professor, use: professor@biblioteca.com / professor123');
+                    }
+                } else {
+                    // Cliente comum (aluno)
+                    loginCliente(email, senha, tipoUsuario);
+                }
             }
         }
 
-        function loginCliente(email, senha) {
+        function loginCliente(email, senha, tipoUsuario) {
             // Tentar login: primeiro localStorage, depois banco de dados
             const usuarios = JSON.parse(localStorage.getItem('usuarios') || '{}');
-            
             if (usuarios[email] && usuarios[email].senha === senha) {
                 // Login via localStorage
+                const usuario = { ...usuarios[email], tipo: tipoUsuario };
                 sessionStorage.setItem('modo', 'cliente');
-                sessionStorage.setItem('usuario', JSON.stringify(usuarios[email]));
-                window.location.href = '/cliente.html';
+                sessionStorage.setItem('usuario', JSON.stringify(usuario));
+                delayedNavigate('/cliente.html');
                 return;
             }
-            
             // Buscar do banco de dados
             fetch('/api/usuarios')
                 .then(r => r.json())
                 .then(usuariosDoBanco => {
-                    const usuario = usuariosDoBanco.find(u => u.email === email);
-                    if (usuario) {
+                    const usuarioBanco = usuariosDoBanco.find(u => u.email === email);
+                    if (usuarioBanco) {
                         // Usuário encontrado no banco, fazer login direto (sem verificar senha de teste)
                         // Salvar todos os usuários no localStorage para rápido acesso
                         const usuariosCache = {};
@@ -394,11 +537,11 @@
                             usuariosCache[u.email] = u;
                         });
                         localStorage.setItem('usuarios', JSON.stringify(usuariosCache));
-                        
+                        const usuario = { ...usuarioBanco, tipo: tipoUsuario };
                         sessionStorage.setItem('modo', 'cliente');
                         sessionStorage.setItem('usuario', JSON.stringify(usuario));
                         console.log('Login bem-sucedido! Usuário:', usuario);
-                        window.location.href = '/cliente.html';
+                        delayedNavigate('/cliente.html');
                     } else {
                         mostrarErro('Email ou senha incorretos');
                     }
@@ -423,6 +566,12 @@
 
             if (senha.length < 6) {
                 mostrarErro('A senha deve ter no mínimo 6 caracteres');
+                return;
+            }
+
+            // Impedir cadastro de professor
+            if (email === 'professor@biblioteca.com') {
+                mostrarErro('Cadastro de professor não permitido. Use o login fixo.');
                 return;
             }
 
@@ -455,6 +604,26 @@
                 body: JSON.stringify(dados)
             }).catch(e => console.log('Nota: Usuário salvo localmente'));
         }
+    </script>
+    <script>
+        // Page overlay + delayed navigation
+        (function(){
+            const overlay = document.createElement('div');
+            overlay.id = 'pageOverlay';
+            document.addEventListener('DOMContentLoaded', ()=>{
+                document.body.appendChild(overlay);
+                // trigger enter animation
+                requestAnimationFrame(()=>{
+                    overlay.classList.add('visible');
+                    setTimeout(()=> overlay.classList.remove('visible'), 20);
+                });
+            });
+
+            window.delayedNavigate = function(url){
+                overlay.classList.add('visible');
+                setTimeout(()=> window.location.href = url, 700);
+            };
+        })();
     </script>
 </body>
 </html>
